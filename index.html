@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#f7f8f3" />
-  <title>Jan Sahayak — Scheme assistant</title>
+  <title>Jan Sahayak — Live web assistant</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -44,8 +44,8 @@
         <div class="welcome" id="welcome">
           <div class="welcome-kicker"><span class="sparkle">✳</span> A LITTLE HELP, A LOT OF POSSIBILITY</div>
           <h1>Good things start<br/>with <em>knowing.</em></h1>
-          <p class="welcome-copy">Tell me a little about yourself. I’ll help you find government schemes that could make a difference.</p>
-          <div class="welcome-hindi" lang="hi">नमस्ते! आप किसान हैं या छात्र? बताइए, मैं आपके लिए सरकारी योजनाएँ ढूँढने में मदद करूँगा।</div>
+          <p class="welcome-copy">Ask me anything. I’ll search the web for current information and explain it clearly.</p>
+          <div class="welcome-hindi" lang="hi">कुछ भी पूछें—मैं इंटरनेट पर मौजूदा जानकारी खोजकर आसान भाषा में समझाऊँगा।</div>
           <div class="prompt-grid">
             <button class="prompt-card" data-prompt="I am a farmer. What schemes may help me?"><span class="prompt-icon farmer-icon">⌁</span><span><strong>I’m a farmer</strong><small>Support for crops, credit &amp; more</small></span><span class="arrow">↗</span></button>
             <button class="prompt-card" data-prompt="I am a student. What scholarships are available?"><span class="prompt-icon student-icon">▤</span><span><strong>I’m a student</strong><small>Scholarships &amp; education support</small></span><span class="arrow">↗</span></button>
@@ -56,7 +56,7 @@
       </section>
       <div class="composer-wrap">
         <div class="composer" id="composer">
-          <textarea id="messageInput" rows="1" placeholder="Tell me what you’re looking for..." aria-label="Your message"></textarea>
+          <textarea id="messageInput" rows="1" placeholder="Ask anything..." aria-label="Your message"></textarea>
           <div class="composer-tools"><div class="composer-hint"><span class="sparkle tiny">✳</span> Ask in English or हिन्दी <span class="hint-divider">·</span> Voice notes welcome</div><div class="compose-actions"><button id="recordBtn" class="voice-button" title="Record a voice note" aria-label="Record a voice note"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21m-3 0h6"/></svg></button><button id="sendBtn" class="send-button" aria-label="Send message"><svg viewBox="0 0 24 24"><path d="m4 4 16 8-16 8 3-8-3-8Zm3 8h13"/></svg></button></div></div>
         </div>
         <div id="recordStatus" class="record-status" hidden></div>
@@ -100,8 +100,9 @@
   <dialog id="applicationDialog" class="profile-dialog application-dialog">
     <form id="draftForm">
       <div class="dialog-header"><div><div class="dialog-eyebrow">APPLICATION ASSISTANT · DEMO</div><h2>Prepare an application draft</h2></div><button type="button" class="close-dialog" id="closeApplication" aria-label="Close">×</button></div>
-      <p class="dialog-copy">Choose a scheme and add details for its draft. Saved profile details are filled in automatically. You can save the draft to your account; it is not submitted to a government site.</p>
-      <label class="field-label">Scheme<select name="scheme_id" id="draftScheme" required><option value="">Loading schemes…</option></select></label>
+      <p class="dialog-copy">Enter the scheme name and add details for its draft. Copy the scheme name and official link from the chat sources. Saved profile details are filled in automatically. This draft is not submitted to a government site.</p>
+      <label class="field-label">Scheme name<input name="scheme_name" id="draftScheme" placeholder="Enter the scheme name from the cited official source" required /></label>
+      <label class="field-label">Official government website <span>Optional · HTTPS .gov.in or .nic.in</span><input name="official_website" placeholder="https://example.gov.in" /></label>
       <div class="form-row"><label class="field-label">Full name<input name="name" autocomplete="name" required /></label><label class="field-label">Mobile number<input name="phone" type="tel" autocomplete="tel" placeholder="Optional" /></label></div>
       <div class="form-row"><label class="field-label">Age<input name="age" type="number" min="1" max="120" placeholder="Optional" /></label><label class="field-label">Applicant category<select name="category"><option value="">Choose if relevant</option><option>General</option><option>OBC</option><option>SC</option><option>ST</option><option>EWS</option><option>Other / prefer not to say</option></select></label></div>
       <div class="form-row"><label class="field-label">State<input name="state" autocomplete="address-level1" required /></label><label class="field-label">District<input name="district" placeholder="Optional" /></label></div>

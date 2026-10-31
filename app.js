@@ -2,15 +2,14 @@ const $ = s => document.querySelector(s);
 const messages = $('#messages'), welcome = $('#welcome'), input = $('#messageInput'), sendBtn = $('#sendBtn'), dialog = $('#profileDialog'), form = $('#profileForm'), applicationDialog=$('#applicationDialog'),draftForm=$('#draftForm');
 const authDialog=$('#authDialog'),authForm=$('#authForm');
 let busy=false, recorder=null, recognizer=null, chunks=[], recording=false, speechText='';
-let availableSchemes=[];
-let authToken=sessionStorage.getItem('janSahayakToken')||'',currentUser=null,authMode='signup',afterAuth=null,currentConversationId=null,conversationList=[];
+let authToken=sessionStorage.getItem('janSahayakToken')||'',currentUser=null,authMode='signup',afterAuth=null,currentConversationId=null,conversationList=[],chatHistory=[];
 function apiHeaders(json=true){const headers={};if(json)headers['content-type']='application/json';if(authToken)headers.authorization=`Bearer ${authToken}`;return headers;}
 function requestAuth(callback=null){afterAuth=callback;$('#authError').textContent='';authDialog.showModal();}
 function updateAccount(user){currentUser=user;$('#accountName').textContent=user?.name||'Guest';$('#accountStatus').textContent=user?.email||'Exploring schemes';$('#topAccountLabel').textContent=user?'My account':'Log in';$('#logoutBtn').hidden=!user;}
 
 function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function formatText(text){return escapeHTML(text).replace(/(https:\/\/[^\s)]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');}
-function wantsApplication(text){const q=String(text).toLowerCase();if(/how (?:do|can|to) i apply|steps? to apply|how to fill|आवेदन कैसे|अप्लाई कैसे/.test(q))return false;return /apply for me|apply on my behalf|apply.{0,60}(?:for me|on my behalf)|i\s+(?:want|need|wanna|would like)\s+(?:to\s+)?(?:apply|submit)|(?:can|could) you\s+(?:apply|submit|fill)|please\s+(?:apply|submit|fill)|help me\s+(?:apply|fill)|start (?:an? )?application|submit (?:an? )?application|मेरे लिए आवेदन|मैं आवेदन करना|मुझे आवेदन करना|आवेदन करना (?:चाहता|है)|आवेदन कर दीजिए|अप्लाई कर|मुझे अप्लाई करना|मेरे लिए फॉर्म/.test(q);}
+function wantsApplication(text){const q=String(text).toLowerCase();if(/how (?:do|can|to) i apply|steps? to apply|how to fill|आवेदन कैसे|अप्लाई कैसे/.test(q))return false;return /apply\s+(?:in|for|to)\s+(?:this|it|that)\b|apply for me|apply on my behalf|apply.{0,60}(?:for me|on my behalf)|i\s+(?:want|need|wanna|would like)\s+(?:to\s+)?(?:apply|submit)|(?:can|could) you\s+(?:apply|submit|fill)|please\s+(?:apply|submit|fill)|help me\s+(?:apply|fill)|start (?:an? )?application|submit (?:an? )?application|मेरे लिए आवेदन|मैं आवेदन करना|मुझे आवेदन करना|आवेदन करना (?:चाहता|है)|आवेदन कर दीजिए|अप्लाई कर|मुझे अप्लाई करना|मेरे लिए फॉर्म/.test(q);}
 function addMessage(role,text,typing=false){
   welcome.hidden=true;
   const item=document.createElement('div'); item.className=`message ${role}${typing?' typing':''}`;
@@ -26,12 +25,13 @@ async function send(text){
   text=(text??input.value).trim(); if(!text||busy)return;
   input.value=''; input.style.height='auto'; addMessage('user',text); const pending=addMessage('assistant','Thinking…',true); busy=true;sendBtn.disabled=true;
   try{
-    const response=await fetch('/api/chat',{method:'POST',headers:apiHeaders(),body:JSON.stringify({message:text,language:$('#language').value,conversationId:currentConversationId})});
+    const response=await fetch('/api/chat',{method:'POST',headers:apiHeaders(),body:JSON.stringify({message:text,language:$('#language').value,conversationId:currentConversationId,history:chatHistory.slice(-10)})});
     const data=await response.json().catch(()=>({})); if(!response.ok)throw new Error(data.error||`Server error (${response.status}). Please try again.`);
     pending.classList.remove('typing');
     const sourceLinks=(data.sources||[]).map(s=>`<a href="${escapeHTML(s.url)}" target="_blank" rel="noopener">${escapeHTML(s.title||s.url)}</a>`);
     const sourcesHtml=sourceLinks.length?`\n\nSources:\n${sourceLinks.map((x,i)=>`${i+1}. ${x}`).join('\n')}`:'';
     pending.querySelector('.bubble').innerHTML=formatText(data.answer||'I could not find an answer. Please try again.')+sourcesHtml;
+    chatHistory.push({role:'user',content:text},{role:'assistant',content:data.answer||''});
     if(data.conversationId)currentConversationId=data.conversationId;
     if(data.action?.type==='application_draft'||wantsApplication(text))addApplicationCTA(pending.querySelector('.bubble'),data.action?.schemeId||null);
     if(authToken)await loadConversations(false);
@@ -42,14 +42,14 @@ sendBtn.addEventListener('click',()=>send());
 input.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,120)+'px';});
 input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
 document.querySelectorAll('[data-prompt]').forEach(el=>el.addEventListener('click',()=>send(el.dataset.prompt)));
-$('#newChat').addEventListener('click',()=>{currentConversationId=null;messages.replaceChildren();welcome.hidden=false;input.focus();renderConversations();});
+$('#newChat').addEventListener('click',()=>{currentConversationId=null;chatHistory=[];messages.replaceChildren();welcome.hidden=false;input.focus();renderConversations();});
 document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('#newChat').click();}});
 function readSavedProfile(){try{return JSON.parse(sessionStorage.getItem('janSahayakProfile')||'{}')}catch{return {}}}
 function fillForm(formElement,values){for(const [key,value] of Object.entries(values||{})){const field=formElement.elements.namedItem(key);if(field&&value!=null)field.value=String(value)}}
 function renderConversations(){
   const list=$('#conversationList');$('#newChat').classList.toggle('active',!currentConversationId);list.replaceChildren();if(!authToken){const empty=document.createElement('div');empty.className='history-empty';empty.textContent='Log in to save chat history.';list.append(empty);return;}
   if(!conversationList.length){const empty=document.createElement('div');empty.className='history-empty';empty.textContent='Your saved conversations will appear here.';list.append(empty);return;}
-  for(const item of conversationList){const row=document.createElement('div');row.className=`chat-history-row${item.id===currentConversationId?' selected':''}`;const open=document.createElement('button');open.type='button';open.className='chat-history-item';open.textContent=item.title||'Conversation';open.title=item.title||'Conversation';open.addEventListener('click',()=>loadConversation(item.id));const remove=document.createElement('button');remove.type='button';remove.className='chat-history-delete';remove.textContent='×';remove.setAttribute('aria-label',`Delete ${item.title||'conversation'}`);remove.addEventListener('click',async event=>{event.stopPropagation();if(!confirm('Delete this conversation and its messages?'))return;try{const response=await fetch(`/api/conversations/${item.id}`,{method:'DELETE',headers:apiHeaders(false)});const result=await response.json();if(!response.ok)throw new Error(result.error);conversationList=conversationList.filter(chat=>chat.id!==item.id);if(currentConversationId===item.id){currentConversationId=null;messages.replaceChildren();welcome.hidden=false;}renderConversations();}catch(error){remove.title=error.message||'Could not delete conversation.';}});row.append(open,remove);list.append(row);}
+  for(const item of conversationList){const row=document.createElement('div');row.className=`chat-history-row${item.id===currentConversationId?' selected':''}`;const open=document.createElement('button');open.type='button';open.className='chat-history-item';open.textContent=item.title||'Conversation';open.title=item.title||'Conversation';open.addEventListener('click',()=>loadConversation(item.id));const remove=document.createElement('button');remove.type='button';remove.className='chat-history-delete';remove.textContent='×';remove.setAttribute('aria-label',`Delete ${item.title||'conversation'}`);remove.addEventListener('click',async event=>{event.stopPropagation();if(!confirm('Delete this conversation and its messages?'))return;try{const response=await fetch(`/api/conversations/${item.id}`,{method:'DELETE',headers:apiHeaders(false)});const result=await response.json();if(!response.ok)throw new Error(result.error);conversationList=conversationList.filter(chat=>chat.id!==item.id);if(currentConversationId===item.id){currentConversationId=null;chatHistory=[];messages.replaceChildren();welcome.hidden=false;}renderConversations();}catch(error){remove.title=error.message||'Could not delete conversation.';}});row.append(open,remove);list.append(row);}
 }
 async function loadConversations(restoreLatest=false){
   if(!authToken){conversationList=[];renderConversations();return;}
@@ -57,7 +57,7 @@ async function loadConversations(restoreLatest=false){
   catch(error){conversationList=[];renderConversations();console.warn('Could not load chat history:',error.message);}
 }
 async function loadConversation(id){
-  try{const response=await fetch(`/api/conversations/${id}`,{headers:apiHeaders(false)}),data=await response.json();if(!response.ok)throw new Error(data.error);currentConversationId=data.conversation.id;messages.replaceChildren();welcome.hidden=true;const history=data.conversation.messages||[];for(let i=0;i<history.length;i++){const message=history[i],item=addMessage(message.role,message.content);if(message.role==='assistant'&&history[i-1]?.role==='user'&&wantsApplication(history[i-1].content))addApplicationCTA(item.querySelector('.bubble'));}renderConversations();input.focus();}
+  try{const response=await fetch(`/api/conversations/${id}`,{headers:apiHeaders(false)}),data=await response.json();if(!response.ok)throw new Error(data.error);currentConversationId=data.conversation.id;messages.replaceChildren();welcome.hidden=true;const history=data.conversation.messages||[];chatHistory=history.map(({role,content})=>({role,content}));for(let i=0;i<history.length;i++){const message=history[i],item=addMessage(message.role,message.content);if(message.role==='assistant'&&history[i-1]?.role==='user'&&wantsApplication(history[i-1].content))addApplicationCTA(item.querySelector('.bubble'));}renderConversations();input.focus();}
   catch(error){console.warn('Could not open conversation:',error.message);}
 }
 for(const id of ['profileOpen','profileOpenTop','profileOpenBottom'])$('#'+id).addEventListener('click',async()=>{
@@ -71,7 +71,7 @@ function setAuthMode(mode){authMode=mode;const signup=mode==='signup';$('#authTi
 document.querySelectorAll('.auth-tab').forEach(tab=>tab.addEventListener('click',()=>setAuthMode(tab.dataset.authMode)));
 $('#closeAuth').addEventListener('click',()=>{authDialog.close();afterAuth=null;});
 $('#continueGuest').addEventListener('click',()=>{afterAuth=null;authDialog.close();});
-$('#logoutBtn').addEventListener('click',()=>{authToken='';currentUser=null;conversationList=[];currentConversationId=null;messages.replaceChildren();welcome.hidden=false;sessionStorage.removeItem('janSahayakToken');sessionStorage.removeItem('janSahayakProfile');updateAccount(null);renderConversations();requestAuth();});
+$('#logoutBtn').addEventListener('click',()=>{authToken='';currentUser=null;conversationList=[];currentConversationId=null;chatHistory=[];messages.replaceChildren();welcome.hidden=false;sessionStorage.removeItem('janSahayakToken');sessionStorage.removeItem('janSahayakProfile');updateAccount(null);renderConversations();requestAuth();});
 authForm.addEventListener('submit',async e=>{
   e.preventDefault();$('#authError').textContent='';const values=Object.fromEntries(new FormData(authForm).entries());values.consent=authForm.elements.consent.checked;
   try{const r=await fetch(`/api/auth/${authMode}`,{method:'POST',headers:apiHeaders(),body:JSON.stringify(values)});const result=await r.json();if(!r.ok)throw new Error(result.error||'Could not authenticate.');authToken=result.token;sessionStorage.setItem('janSahayakToken',authToken);sessionStorage.setItem('janSahayakProfile',JSON.stringify(result.user));updateAccount(result.user);authDialog.close();authForm.reset();const next=afterAuth;afterAuth=null;await loadConversations(!next);if(next)await next();}
@@ -91,25 +91,21 @@ form.addEventListener('submit',async e=>{
 async function openApplication(selectedSchemeId=null){
   if(!authToken){requestAuth(()=>openApplication(selectedSchemeId));return;}
   draftForm.reset();fillForm(draftForm,readSavedProfile());$('#draftPreview').hidden=true;
-  const select=$('#draftScheme');select.innerHTML='<option value="">Choose a scheme</option>';
+  if(selectedSchemeId)$('#draftScheme').value=selectedSchemeId;
   applicationDialog.showModal();
-  try{
-    const [r,profileResponse]=await Promise.all([fetch('/api/schemes'),fetch('/api/profile',{headers:apiHeaders(false)})]);availableSchemes=await r.json();const profile=await profileResponse.json();if(!r.ok)throw new Error('Could not load the scheme list.');if(profileResponse.ok){sessionStorage.setItem('janSahayakProfile',JSON.stringify(profile));fillForm(draftForm,profile);}
-    for(const scheme of availableSchemes){const option=document.createElement('option');option.value=scheme.id;option.textContent=`${scheme.name}${scheme.short_name?` (${scheme.short_name})`:''}`;select.append(option);}
-    if(selectedSchemeId&&availableSchemes.some(s=>s.id===selectedSchemeId))select.value=selectedSchemeId;
-  }catch(e){select.innerHTML='<option value="">Could not load schemes</option>';}
+  try{const r=await fetch('/api/profile',{headers:apiHeaders(false)});const profile=await r.json();if(r.ok){sessionStorage.setItem('janSahayakProfile',JSON.stringify(profile));fillForm(draftForm,profile);if(selectedSchemeId)$('#draftScheme').value=selectedSchemeId;}}catch{}
 }
 $('#closeApplication').addEventListener('click',()=>applicationDialog.close());
 applicationDialog.addEventListener('click',e=>{if(e.target===applicationDialog)applicationDialog.close();});
 $('#clearDraft').addEventListener('click',()=>{draftForm.reset();fillForm(draftForm,readSavedProfile());$('#draftPreview').hidden=true;});
 draftForm.addEventListener('submit',e=>{
-  e.preventDefault();const values=Object.fromEntries(new FormData(draftForm).entries());const scheme=availableSchemes.find(s=>s.id===values.scheme_id);if(!scheme)return;
+  e.preventDefault();const values=Object.fromEntries(new FormData(draftForm).entries());const schemeName=String(values.scheme_name||'').trim();if(!schemeName)return;
   const labels={name:'Applicant name',phone:'Mobile number',age:'Age',state:'State',district:'District',category:'Category',annual_income:'Annual family income',land_acres:'Land cultivated (acres)',education_level:'Education level',course:'Course / class',institution:'School / institution'};
   window.currentApplicationDraft=values;
-  const lines=[`Application draft: ${scheme.name}${scheme.short_name?` (${scheme.short_name})`:''}`,'',...Object.entries(labels).filter(([key])=>String(values[key]||'').trim()).map(([key,label])=>`${label}: ${String(values[key]).trim()}`),'','Review this draft. It has not been submitted.'];
+  const lines=[`Application draft: ${schemeName}`,'',...Object.entries(labels).filter(([key])=>String(values[key]||'').trim()).map(([key,label])=>`${label}: ${String(values[key]).trim()}`),'','Review this draft. It has not been submitted.'];
   $('#draftPreviewText').textContent=lines.join('\n');
-  let official=String(scheme.official_website||'').trim();if(official&&!/^https?:\/\//i.test(official))official='https://'+official;
-  try{const parsed=new URL(official);if(parsed.protocol==='https:'){$('#officialApplyLink').href=parsed.href;$('#officialApplyLink').hidden=false;}else $('#officialApplyLink').hidden=true;}catch{$('#officialApplyLink').hidden=true;}
+  let official=String(values.official_website||'').trim();if(official&&!/^https?:\/\//i.test(official))official='https://'+official;
+  try{const parsed=new URL(official);if(parsed.protocol==='https:'&&/(^|\.)(gov\.in|nic\.in)$/.test(parsed.hostname)){$('#officialApplyLink').href=parsed.href;$('#officialApplyLink').hidden=false;}else $('#officialApplyLink').hidden=true;}catch{$('#officialApplyLink').hidden=true;}
   $('#draftPreview').hidden=false;$('#draftPreview').scrollIntoView({behavior:'smooth',block:'nearest'});
 });
 $('#saveApplication').addEventListener('click',async()=>{
@@ -124,7 +120,7 @@ async function loadApplications(){
 }
 $('#deleteProfile').addEventListener('click',async()=>{
   if(!confirm('Delete your account, saved profile, chat history, and application drafts? This cannot be undone.'))return;
-  try{const r=await fetch('/api/profile',{method:'DELETE',headers:apiHeaders(false)});const data=await r.json();if(!r.ok)throw new Error(data.error);sessionStorage.removeItem('janSahayakProfile');sessionStorage.removeItem('janSahayakToken');authToken='';currentUser=null;conversationList=[];currentConversationId=null;messages.replaceChildren();welcome.hidden=false;updateAccount(null);renderConversations();dialog.close();requestAuth();}
+  try{const r=await fetch('/api/profile',{method:'DELETE',headers:apiHeaders(false)});const data=await r.json();if(!r.ok)throw new Error(data.error);sessionStorage.removeItem('janSahayakProfile');sessionStorage.removeItem('janSahayakToken');authToken='';currentUser=null;conversationList=[];currentConversationId=null;chatHistory=[];messages.replaceChildren();welcome.hidden=false;updateAccount(null);renderConversations();dialog.close();requestAuth();}
   catch(e){$('#formError').style.color='';$('#formError').textContent=e.message||'Could not delete profile.';}
 });
 
