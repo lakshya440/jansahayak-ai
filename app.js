@@ -12,6 +12,11 @@ function updateAccount(user){currentUser=user;$('#accountName').textContent=user
 
 function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function formatText(text){return escapeHTML(text).replace(/(https:\/\/[^\s)]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');}
+function cleanVoiceTranscript(value){
+  const text=String(value||'').replace(/\s+/g,' ').trim();if(!text)return '';
+  const seen=new Set();
+  return text.split(/(?<=[.!?।])\s+/u).filter(part=>{const key=part.trim().toLocaleLowerCase();if(!key||seen.has(key))return false;seen.add(key);return true;}).join(' ').slice(0,4000);
+}
 function wantsApplication(text){const q=String(text).toLowerCase();if(/how (?:do|can|to) i apply|steps? to apply|how to fill|आवेदन कैसे|अप्लाई कैसे/.test(q))return false;return /apply\s+(?:in|for|to)\s+(?:this|it|that)\b|apply for me|apply on my behalf|apply.{0,60}(?:for me|on my behalf)|i\s+(?:want|need|wanna|would like)\s+(?:to\s+)?(?:apply|submit)|(?:can|could) you\s+(?:apply|submit|fill)|please\s+(?:apply|submit|fill)|help me\s+(?:apply|fill)|start (?:an? )?application|submit (?:an? )?application|मेरे लिए आवेदन|मैं आवेदन करना|मुझे आवेदन करना|आवेदन करना (?:चाहता|है)|आवेदन कर दीजिए|अप्लाई कर|मुझे अप्लाई करना|मेरे लिए फॉर्म/.test(q);}
 function addMessage(role,text,typing=false){
   welcome.hidden=true;
@@ -188,12 +193,13 @@ async function startVoiceMode(){
       active.lang=$('#language').value==='hi'?'hi-IN':'en-IN';
       active.onresult=event=>{
         if(session!==voiceSession||voiceCancelled)return;
-        let interim='';
-        for(let i=event.resultIndex;i<event.results.length;i++){
-          const phrase=event.results[i][0].transcript;
-          if(event.results[i].isFinal)speechText+=phrase+' ';else interim+=phrase;
+        const finals=[],seen=new Set();let interim='';
+        for(let i=0;i<event.results.length;i++){
+          const phrase=String(event.results[i][0].transcript||'').trim();if(!phrase)continue;
+          if(event.results[i].isFinal){const key=phrase.toLocaleLowerCase();if(!seen.has(key)){seen.add(key);finals.push(phrase);}}
+          else interim+=phrase+' ';
         }
-        $('#voiceTranscript').textContent=(speechText+interim).trim()||'Listening…';
+        speechText=cleanVoiceTranscript(finals.join(' '));$('#voiceTranscript').textContent=cleanVoiceTranscript(speechText+' '+interim)||'Listening…';
       };
       active.onerror=event=>{
         if(session!==voiceSession||voiceCancelled)return;
@@ -204,7 +210,7 @@ async function startVoiceMode(){
         if(session!==voiceSession)return;
         if(recognizer===active)recognizer=null;recording=false;
         if(voiceCancelled){closeVoiceMode();return;}
-        const transcript=speechText.trim();if(transcript){input.value=transcript;closeVoiceMode();}else setVoiceRetry();
+        const transcript=cleanVoiceTranscript(speechText);if(transcript){input.value=transcript;closeVoiceMode();}else setVoiceRetry();
       };
       active.start();recording=true;setRecordButtonRecording(true);return;
     }catch(e){recognizer=null;}
@@ -228,7 +234,7 @@ async function startVoiceMode(){
         const r=await fetch('/api/transcribe',{method:'POST',headers:{'content-type':blob.type||'audio/webm'},body:blob});
         const data=await r.json().catch(()=>({}));
         if(session!==voiceSession||voiceCancelled)return;if(!r.ok)throw new Error(data.error||`Transcription failed (HTTP ${r.status}).`);
-        const transcript=String(data.transcript||'').trim();if(!transcript){setVoiceRetry('No speech could be recognized. Try again.');return;}input.value=transcript;closeVoiceMode();
+        const transcript=cleanVoiceTranscript(data.transcript);if(!transcript){setVoiceRetry('No speech could be recognized. Try again.');return;}input.value=transcript;closeVoiceMode();
       }
       catch(e){if(session===voiceSession&&!voiceCancelled)showVoiceFailure(e.message||'Could not transcribe voice note.');}
     };
