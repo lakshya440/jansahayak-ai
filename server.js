@@ -483,4 +483,4 @@ const server=http.createServer(async(req,res)=>{
   }
 });
 if (pool) initDatabase().then(() => console.log('PostgreSQL schema is ready.')).catch(error => console.error('PostgreSQL schema setup failed:', error.message));
-server.listen(PORT,'127.0.0.1',()=>console.log(`Jan Sahayak running at http://localhost:${PORT}`));
+server.listen(PORT,'0.0.0.0',()=>console.log(`Jan Sahayak listening on port ${PORT}`));
