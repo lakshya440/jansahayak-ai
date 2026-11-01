@@ -1,7 +1,10 @@
 const $ = s => document.querySelector(s);
 const messages = $('#messages'), welcome = $('#welcome'), input = $('#messageInput'), sendBtn = $('#sendBtn'), dialog = $('#profileDialog'), form = $('#profileForm'), applicationDialog=$('#applicationDialog'),draftForm=$('#draftForm');
 const authDialog=$('#authDialog'),authForm=$('#authForm');
-let busy=false, recorder=null, recognizer=null, chunks=[], recording=false, speechText='';
+let busy=false, recorder=null, recognizer=null, voiceStream=null, chunks=[], recording=false, speechText='',voiceCancelled=false,voiceSession=0;
+const voiceInline=$('#voiceInline');
+const voiceOrb=$('#voiceOrb');
+voiceOrb.replaceChildren(...Array.from({length:43},(_,index)=>{const bar=document.createElement('i');bar.style.setProperty('--bar-index',index);return bar;}));
 let authToken=sessionStorage.getItem('janSahayakToken')||'',currentUser=null,authMode='signup',afterAuth=null,currentConversationId=null,conversationList=[],chatHistory=[];
 function apiHeaders(json=true){const headers={};if(json)headers['content-type']='application/json';if(authToken)headers.authorization=`Bearer ${authToken}`;return headers;}
 function requestAuth(callback=null){afterAuth=callback;$('#authError').textContent='';authDialog.showModal();}
@@ -150,54 +153,89 @@ $('#deleteProfile').addEventListener('click',async()=>{
   catch(e){$('#formError').style.color='';$('#formError').textContent=e.message||'Could not delete profile.';}
 });
 
-async function toggleRecording(){
-  const btn=$('#recordBtn'), status=$('#recordStatus');
-  if(recording){if(recognizer)recognizer.stop();else recorder.stop();return;}
+function updateVoiceState(title,hint,state='listening'){
+  $('#voiceTitle').textContent=title;voiceInline.classList.toggle('processing',state==='processing');voiceInline.classList.toggle('voice-error',state==='error');
+}
+function setVoiceRetry(transcript='No speech was detected.'){
+  updateVoiceState('I didn’t catch that','Try again, or close voice mode.','error');$('#voiceTranscript').textContent=transcript;
+  $('#recordBtn').disabled=false;$('#recordBtn').classList.remove('recording');$('#recordBtn').title='Try recording again';$('#recordBtn').setAttribute('aria-label','Try recording again');
+  $('#voiceCancel').setAttribute('aria-label','Close voice message');
+}
+function closeVoiceMode(){
+  const button=$('#recordBtn');button.disabled=false;button.classList.remove('recording');button.title='Record a voice note';button.setAttribute('aria-label','Record a voice note');button.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21m-3 0h6"/></svg>';
+  voiceInline.hidden=true;input.hidden=false;$('#composer').classList.remove('voice-active');voiceInline.classList.remove('processing','voice-error');
+  input.focus();
+}
+function cancelVoiceMode(){
+  voiceSession++;voiceCancelled=true;speechText='';
+  if(recognizer){const active=recognizer;recognizer=null;recording=false;try{active.abort();}catch{}closeVoiceMode();}
+  else if(recorder&&recording){recording=false;try{recorder.stop();}catch{}voiceStream?.getTracks().forEach(track=>track.stop());voiceStream=null;chunks=[];closeVoiceMode();}
+  else closeVoiceMode();
+}
+function showVoiceFailure(message){
+  voiceSession++;voiceCancelled=true;recording=false;recognizer=null;recorder=null;chunks=[];
+  voiceStream?.getTracks().forEach(track=>track.stop());voiceStream=null;
+  $('#recordBtn').classList.remove('recording');$('#recordBtn').title='Record a voice note';
+  closeVoiceMode();const status=$('#recordStatus');status.hidden=false;status.textContent=message;
+}
+async function startVoiceMode(){
+  if(recording)return;
+  const session=++voiceSession;voiceCancelled=false;speechText='';chunks=[];$('#recordStatus').hidden=true;$('#voiceCancel').setAttribute('aria-label','Cancel voice message');$('#voiceTranscript').textContent='';updateVoiceState('Listening','Speak naturally in English or Hindi.');input.hidden=true;voiceInline.hidden=false;$('#composer').classList.add('voice-active');
   const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(SpeechRecognition){
     try{
-      recognizer=new SpeechRecognition();recognizer.continuous=true;recognizer.interimResults=true;
-      recognizer.lang=$('#language').value==='hi'?'hi-IN':'en-IN';speechText='';
-      recognizer.onresult=event=>{
+      const active=new SpeechRecognition();recognizer=active;active.continuous=true;active.interimResults=true;
+      active.lang=$('#language').value==='hi'?'hi-IN':'en-IN';
+      active.onresult=event=>{
+        if(session!==voiceSession||voiceCancelled)return;
         let interim='';
         for(let i=event.resultIndex;i<event.results.length;i++){
           const phrase=event.results[i][0].transcript;
           if(event.results[i].isFinal)speechText+=phrase+' ';else interim+=phrase;
         }
-        status.textContent=interim?`Listening: ${interim}`:'Listening… Tap the microphone again when you’re done.';
+        $('#voiceTranscript').textContent=(speechText+interim).trim()||'Listening…';
       };
-      recognizer.onerror=event=>{
-        recording=false;btn.classList.remove('recording');btn.title='Record a voice note';
-        status.textContent=event.error==='not-allowed'?'Microphone access is needed to use voice input.':'Speech recognition failed. Try typing your message or use a supported browser.';
-        recognizer=null;
+      active.onerror=event=>{
+        if(session!==voiceSession||voiceCancelled)return;
+        const message=event.error==='not-allowed'?'Allow microphone access in your browser, then try voice mode again.':event.error==='no-speech'?'I didn’t hear anything. Try speaking a little closer to your microphone.':'Voice capture failed. Try again or type your message.';
+        showVoiceFailure(message);
       };
-      recognizer.onend=async()=>{
-        const transcript=speechText.trim();recording=false;btn.classList.remove('recording');btn.title='Record a voice note';recognizer=null;
-        if(transcript){status.hidden=true;input.value=transcript;await send(transcript);}
-        else status.textContent='No speech was detected. Tap the microphone and try again.';
+      active.onend=async()=>{
+        if(session!==voiceSession)return;
+        if(recognizer===active)recognizer=null;recording=false;
+        if(voiceCancelled){closeVoiceMode();return;}
+        const transcript=speechText.trim();if(transcript){input.value=transcript;closeVoiceMode();}else setVoiceRetry();
       };
-      recognizer.start();recording=true;btn.classList.add('recording');btn.title='Stop voice input';status.hidden=false;status.textContent='Listening… Tap the microphone again when you’re done.';return;
+      active.start();recording=true;setRecordButtonRecording(true);return;
     }catch(e){recognizer=null;}
   }
-  if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){status.hidden=false;status.textContent='Voice recording is not supported in this browser.';return;}
+  if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){showVoiceFailure('Voice recording is not supported in this browser.');return;}
   try{
-    const stream=await navigator.mediaDevices.getUserMedia({audio:true});chunks=[];
+    const activeStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    if(session!==voiceSession||voiceCancelled){activeStream.getTracks().forEach(track=>track.stop());return;}
     const mime=['audio/webm;codecs=opus','audio/webm','audio/mp4'].find(t=>MediaRecorder.isTypeSupported(t));
-    recorder=new MediaRecorder(stream,mime?{mimeType:mime}:undefined);
-    recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
-    recorder.onstop=async()=>{
-      stream.getTracks().forEach(t=>t.stop());recording=false;btn.classList.remove('recording');btn.title='Record a voice note';status.hidden=true;
-      const blob=new Blob(chunks,{type:recorder.mimeType||'audio/webm'});if(blob.size>15*1024*1024){status.hidden=false;status.textContent='That recording is too large. Please try a shorter voice note.';return;}
-      status.hidden=false;status.textContent='Transcribing your voice note…';
+    const activeRecorder=new MediaRecorder(activeStream,mime?{mimeType:mime}:undefined);voiceStream=activeStream;recorder=activeRecorder;
+    activeRecorder.ondataavailable=e=>{if(session===voiceSession&&e.data.size)chunks.push(e.data);};
+    activeRecorder.onstop=async()=>{
+      activeStream.getTracks().forEach(t=>t.stop());if(voiceStream===activeStream)voiceStream=null;if(recorder===activeRecorder)recorder=null;
+      if(session!==voiceSession)return;
+      recording=false;
+      if(voiceCancelled){chunks=[];return;}
+      const blob=new Blob(chunks,{type:activeRecorder.mimeType||'audio/webm'});chunks=[];if(blob.size>15*1024*1024){showVoiceFailure('That recording is too large. Please try a shorter voice message.');return;}
+      setRecordButtonRecording(false);$('#recordBtn').disabled=true;
+      updateVoiceState('Transcribing your voice','This usually takes a few seconds.','processing');
       try{
         const r=await fetch('/api/transcribe',{method:'POST',headers:{'content-type':blob.type||'audio/webm'},body:blob});
         const data=await r.json().catch(()=>({}));
-        if(!r.ok)throw new Error(data.error||`Transcription failed (HTTP ${r.status}).`);
-        status.hidden=true;input.value=data.transcript;await send(data.transcript);
+        if(session!==voiceSession||voiceCancelled)return;if(!r.ok)throw new Error(data.error||`Transcription failed (HTTP ${r.status}).`);
+        const transcript=String(data.transcript||'').trim();if(!transcript){setVoiceRetry('No speech could be recognized. Try again.');return;}input.value=transcript;closeVoiceMode();
       }
-      catch(e){status.textContent=e.message||'Could not transcribe voice note.';}
+      catch(e){if(session===voiceSession&&!voiceCancelled)showVoiceFailure(e.message||'Could not transcribe voice note.');}
     };
-    recorder.start();recording=true;btn.classList.add('recording');btn.title='Stop recording';status.hidden=false;status.textContent='Listening… Tap the microphone again when you’re done.';
-  }catch(e){status.hidden=false;status.textContent='Microphone access is needed to record a voice note.';}
+    recorder.start();recording=true;setRecordButtonRecording(true);
+  }catch(e){if(session===voiceSession)showVoiceFailure('Microphone access is needed to use voice mode.');}
 }
-$('#recordBtn').addEventListener('click',toggleRecording);
+function setRecordButtonRecording(active){const button=$('#recordBtn');button.disabled=false;button.classList.toggle('recording',active);button.title=active?'Stop recording':'Record a voice note';button.setAttribute('aria-label',active?'Stop recording':'Record a voice note');button.innerHTML=active?'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>':'<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21m-3 0h6"/></svg>';}
+function stopVoiceCapture(){if(!recording)return;updateVoiceState('Finishing…','Finishing your message…','processing');if(recognizer)recognizer.stop();else if(recorder)recorder.stop();}
+$('#recordBtn').addEventListener('click',()=>recording?stopVoiceCapture():startVoiceMode());
+$('#voiceCancel').addEventListener('click',cancelVoiceMode);
