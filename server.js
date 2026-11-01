@@ -175,7 +175,7 @@ async function db(action, payload) {
     return rows[0];
   }
   if (action === 'list_applications') {
-    const {rows}=await readQuery('SELECT a.id,a.scheme_id,s.name AS scheme_name,s.short_name,a.status,a.details,a.created_at,a.updated_at FROM applications a JOIN schemes s ON s.id=a.scheme_id WHERE a.user_id=$1 ORDER BY a.created_at DESC',[payload.userId]);
+    const {rows}=await readQuery('SELECT a.id,a.scheme_id,s.name AS scheme_name,s.short_name,s.official_website,a.status,a.details,a.created_at,a.updated_at FROM applications a JOIN schemes s ON s.id=a.scheme_id WHERE a.user_id=$1 ORDER BY a.created_at DESC',[payload.userId]);
     return rows;
   }
   if (action === 'update_application') {

@@ -51,6 +51,27 @@ function renderConversations(){
   if(!conversationList.length){const empty=document.createElement('div');empty.className='history-empty';empty.textContent='Your saved conversations will appear here.';list.append(empty);return;}
   for(const item of conversationList){const row=document.createElement('div');row.className=`chat-history-row${item.id===currentConversationId?' selected':''}`;const open=document.createElement('button');open.type='button';open.className='chat-history-item';open.textContent=item.title||'Conversation';open.title=item.title||'Conversation';open.addEventListener('click',()=>loadConversation(item.id));const remove=document.createElement('button');remove.type='button';remove.className='chat-history-delete';remove.textContent='×';remove.setAttribute('aria-label',`Delete ${item.title||'conversation'}`);remove.addEventListener('click',async event=>{event.stopPropagation();if(!confirm('Delete this conversation and its messages?'))return;try{const response=await fetch(`/api/conversations/${item.id}`,{method:'DELETE',headers:apiHeaders(false)});const result=await response.json();if(!response.ok)throw new Error(result.error);conversationList=conversationList.filter(chat=>chat.id!==item.id);if(currentConversationId===item.id){currentConversationId=null;chatHistory=[];messages.replaceChildren();welcome.hidden=false;}renderConversations();}catch(error){remove.title=error.message||'Could not delete conversation.';}});row.append(open,remove);list.append(row);}
 }
+function renderApplicationProgress(applications=[]){
+  const list=$('#applicationProgressList');list.replaceChildren();
+  if(!authToken){const empty=document.createElement('div');empty.className='history-empty';empty.textContent='Log in to track your applications.';list.append(empty);return;}
+  if(!applications.length){const empty=document.createElement('div');empty.className='history-empty';empty.textContent='Your saved application drafts will appear here.';const start=document.createElement('button');start.type='button';start.className='progress-empty-action';start.textContent='Start an application draft';start.addEventListener('click',()=>openApplication());list.append(empty,start);return;}
+  for(const item of applications){
+    const status=item.status||'draft',card=document.createElement('article');card.className=`application-progress-card status-${status}`;
+    const header=document.createElement('div');header.className='application-progress-header';
+    const title=document.createElement('strong');title.className='application-progress-title';title.textContent=item.scheme_name||'Scheme application';title.title=title.textContent;
+    const badge=document.createElement('span');badge.className='application-status-badge';badge.textContent=status==='submitted'?'Submitted':status==='withdrawn'?'Withdrawn':'Draft';header.append(title,badge);card.append(header);
+    const steps=document.createElement('ol');steps.className='application-progress-steps';
+    const stages=status==='submitted'?[['Draft saved','done'],['Marked submitted by you','done'],['Check for updates on official portal','current']]:status==='withdrawn'?[['Draft saved','done'],['Withdrawn by you','current']]:[['Draft saved','done'],['Submit on official portal','current']];
+    for(const [label,state] of stages){const step=document.createElement('li');step.className=`application-progress-step ${state}`;step.textContent=label;steps.append(step);}card.append(steps);
+    const actions=document.createElement('div');actions.className='application-progress-actions';
+    const official=String(item.official_website||'');
+    try{const parsed=new URL(/^https?:\/\//i.test(official)?official:`https://${official}`);if(parsed.protocol==='https:'&&/(^|\.)(gov\.in|nic\.in)$/.test(parsed.hostname)){const link=document.createElement('a');link.className='progress-portal-link';link.href=parsed.href;link.target='_blank';link.rel='noopener';link.textContent=status==='submitted'?'Check portal ↗':'Open scheme portal ↗';actions.append(link);}}catch{}
+    if(status==='draft'){const mark=document.createElement('button');mark.type='button';mark.className='progress-submit-button';mark.textContent='Mark submitted';mark.addEventListener('click',()=>updateApplicationStatus(item));actions.append(mark);}
+    if(actions.childElementCount)card.append(actions);
+    const updated=document.createElement('small');updated.className='application-progress-updated';updated.textContent=`Updated ${new Date(item.updated_at||item.created_at).toLocaleDateString()}`;card.append(updated);list.append(card);
+  }
+  const note=document.createElement('p');note.className='application-progress-note';note.textContent='Portal decisions are not synced here. Check the official portal for updates.';list.append(note);
+}
 async function loadConversations(restoreLatest=false){
   if(!authToken){conversationList=[];renderConversations();return;}
   try{const response=await fetch('/api/conversations',{headers:apiHeaders(false)}),data=await response.json();if(!response.ok)throw new Error(data.error);conversationList=data.conversations||[];renderConversations();if(restoreLatest&&!currentConversationId&&conversationList.length)await loadConversation(conversationList[0].id);}
@@ -71,15 +92,15 @@ function setAuthMode(mode){authMode=mode;const signup=mode==='signup';$('#authTi
 document.querySelectorAll('.auth-tab').forEach(tab=>tab.addEventListener('click',()=>setAuthMode(tab.dataset.authMode)));
 $('#closeAuth').addEventListener('click',()=>{authDialog.close();afterAuth=null;});
 $('#continueGuest').addEventListener('click',()=>{afterAuth=null;authDialog.close();});
-$('#logoutBtn').addEventListener('click',()=>{authToken='';currentUser=null;conversationList=[];currentConversationId=null;chatHistory=[];messages.replaceChildren();welcome.hidden=false;sessionStorage.removeItem('janSahayakToken');sessionStorage.removeItem('janSahayakProfile');updateAccount(null);renderConversations();requestAuth();});
+$('#logoutBtn').addEventListener('click',()=>{authToken='';currentUser=null;conversationList=[];currentConversationId=null;chatHistory=[];messages.replaceChildren();welcome.hidden=false;sessionStorage.removeItem('janSahayakToken');sessionStorage.removeItem('janSahayakProfile');updateAccount(null);renderConversations();renderApplicationProgress();requestAuth();});
 authForm.addEventListener('submit',async e=>{
   e.preventDefault();$('#authError').textContent='';const values=Object.fromEntries(new FormData(authForm).entries());values.consent=authForm.elements.consent.checked;
-  try{const r=await fetch(`/api/auth/${authMode}`,{method:'POST',headers:apiHeaders(),body:JSON.stringify(values)});const result=await r.json();if(!r.ok)throw new Error(result.error||'Could not authenticate.');authToken=result.token;sessionStorage.setItem('janSahayakToken',authToken);sessionStorage.setItem('janSahayakProfile',JSON.stringify(result.user));updateAccount(result.user);authDialog.close();authForm.reset();const next=afterAuth;afterAuth=null;await loadConversations(!next);if(next)await next();}
+  try{const r=await fetch(`/api/auth/${authMode}`,{method:'POST',headers:apiHeaders(),body:JSON.stringify(values)});const result=await r.json();if(!r.ok)throw new Error(result.error||'Could not authenticate.');authToken=result.token;sessionStorage.setItem('janSahayakToken',authToken);sessionStorage.setItem('janSahayakProfile',JSON.stringify(result.user));updateAccount(result.user);authDialog.close();authForm.reset();const next=afterAuth;afterAuth=null;await Promise.all([loadConversations(!next),loadApplications()]);if(next)await next();}
   catch(error){$('#authError').textContent=error.message||'Could not authenticate.';}
 });
 setAuthMode('signup');
-if(authToken){fetch('/api/auth/me',{headers:apiHeaders(false)}).then(async r=>{const data=await r.json();if(!r.ok)throw new Error();sessionStorage.setItem('janSahayakProfile',JSON.stringify(data.user));updateAccount(data.user);await loadConversations(true);}).catch(()=>{authToken='';sessionStorage.removeItem('janSahayakToken');updateAccount(null);renderConversations();});}
-else{updateAccount(null);renderConversations();setTimeout(()=>requestAuth(),0);}
+if(authToken){fetch('/api/auth/me',{headers:apiHeaders(false)}).then(async r=>{const data=await r.json();if(!r.ok)throw new Error();sessionStorage.setItem('janSahayakProfile',JSON.stringify(data.user));updateAccount(data.user);await Promise.all([loadConversations(true),loadApplications()]);}).catch(()=>{authToken='';sessionStorage.removeItem('janSahayakToken');updateAccount(null);renderConversations();renderApplicationProgress();});}
+else{updateAccount(null);renderConversations();renderApplicationProgress();setTimeout(()=>requestAuth(),0);}
 $('#closeProfile').addEventListener('click',()=>dialog.close());
 dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
 form.addEventListener('submit',async e=>{
@@ -113,10 +134,15 @@ $('#saveApplication').addEventListener('click',async()=>{
   try{const r=await fetch('/api/applications',{method:'POST',headers:apiHeaders(),body:JSON.stringify(values)});const data=await r.json();if(!r.ok)throw new Error(data.error||'Could not save this draft.');status.style.color='#36704d';status.textContent='Draft saved to your account.';await loadApplications();}
   catch(error){status.style.color='';status.textContent=error.message||'Could not save this draft.';}
 });
+async function updateApplicationStatus(item){
+  if(!confirm('Only mark this submitted after you have completed the application on the official scheme website.'))return;
+  try{const response=await fetch(`/api/applications/${item.id}`,{method:'PATCH',headers:apiHeaders(),body:JSON.stringify({status:'submitted'})}),result=await response.json();if(!response.ok)throw new Error(result.error||'Could not update status.');await loadApplications();}
+  catch(error){const list=$('#applicationProgressList'),notice=document.createElement('p');notice.className='application-progress-error';notice.textContent=error.message||'Could not update status.';list.prepend(notice);}
+}
 async function loadApplications(){
-  const list=$('#applicationsList');if(!authToken){list.textContent='Log in to view saved drafts.';return;}
-  try{const r=await fetch('/api/applications',{headers:apiHeaders(false)}),data=await r.json();if(!r.ok)throw new Error(data.error);if(!data.applications.length){list.textContent='No saved applications yet.';return;}list.replaceChildren(...data.applications.map(item=>{const row=document.createElement('div');row.className='application-row';const name=document.createElement('span');name.textContent=item.scheme_name||item.scheme_id;const status=document.createElement('small');status.textContent=`${item.status} · ${new Date(item.created_at).toLocaleDateString()}`;row.append(name,status);if(item.status==='draft'){const mark=document.createElement('button');mark.type='button';mark.className='application-mark';mark.textContent='Mark submitted';mark.addEventListener('click',async()=>{if(!confirm('Only mark this submitted if you completed the application on the official scheme website.'))return;const response=await fetch(`/api/applications/${item.id}`,{method:'PATCH',headers:apiHeaders(),body:JSON.stringify({status:'submitted'})});const result=await response.json();if(!response.ok){status.textContent=result.error||'Could not update status.';return;}await loadApplications();});row.append(mark);}return row;}));}
-  catch(error){list.textContent=error.message||'Could not load saved applications.';}
+  const list=$('#applicationsList');if(!authToken){list.textContent='Log in to view saved drafts.';renderApplicationProgress();return;}
+  try{const r=await fetch('/api/applications',{headers:apiHeaders(false)}),data=await r.json();if(!r.ok)throw new Error(data.error);const applications=data.applications||[];renderApplicationProgress(applications);if(!applications.length){list.textContent='No saved applications yet.';return;}list.replaceChildren(...applications.map(item=>{const row=document.createElement('div');row.className='application-row';const name=document.createElement('span');name.textContent=item.scheme_name||item.scheme_id;const status=document.createElement('small');status.textContent=`${item.status} · ${new Date(item.created_at).toLocaleDateString()}`;row.append(name,status);if(item.status==='draft'){const mark=document.createElement('button');mark.type='button';mark.className='application-mark';mark.textContent='Mark submitted';mark.addEventListener('click',()=>updateApplicationStatus(item));row.append(mark);}return row;}));}
+  catch(error){list.textContent=error.message||'Could not load saved applications.';renderApplicationProgress();}
 }
 $('#deleteProfile').addEventListener('click',async()=>{
   if(!confirm('Delete your account, saved profile, chat history, and application drafts? This cannot be undone.'))return;
