@@ -1,0 +1,15 @@
+const $=selector=>document.querySelector(selector);
+let currentScreen=0;
+const screens=['login','verify','form','review','done'];
+function showScreen(index){currentScreen=index;screens.forEach((name,i)=>$(`#screen-${name}`).hidden=i!==index);const activeStep=Math.max(0,Math.min(index-1,3));document.querySelectorAll('#journey li').forEach((item,i)=>{item.classList.toggle('active',i===activeStep);item.classList.toggle('complete',i<activeStep);});window.scrollTo({top:0,behavior:'smooth'});}
+function error(id,message=''){$(`#${id}`).textContent=message;}
+$('#sendOtp').addEventListener('click',()=>{const mobile=$('#mobile');error('loginError');if(!mobile.reportValidity())return;$('#otpBox').hidden=false;$('#otp').focus();});
+$('#verifyOtp').addEventListener('click',()=>{error('loginError');if($('#otp').value!=='123456'){error('loginError','That demo OTP is incorrect. Use 123456.');return;}showScreen(1);});
+document.querySelectorAll('[data-back]').forEach(button=>button.addEventListener('click',()=>showScreen(Number(button.dataset.back))));
+$('#continueForm').addEventListener('click',()=>{error('captchaError');if($('#captcha').value.trim().toUpperCase()!=='7K2M'){error('captchaError','Captcha did not match. Enter 7K2M to continue.');return;}showScreen(2);});
+const formFields=['appName','dob','category','income','marks','accountName','ifsc','account'];
+const labels={appName:'Applicant name',dob:'Date of birth',category:'Category',income:'Annual family income',marks:'Class 12 marks',accountName:'Account holder name',ifsc:'IFSC code',account:'Bank account number'};
+$('#reviewApplication').addEventListener('click',()=>{error('formError');let valid=true;for(const id of formFields){const field=$(`#${id}`);if(!field.reportValidity())valid=false;}if(!valid)return;const ifsc=$('#ifsc');ifsc.value=ifsc.value.trim().toUpperCase();if(!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc.value)){error('formError','Please check the 11-character IFSC format (example: DEMO0001234).');ifsc.focus();return;}if(!/^\d{6,18}$/.test($('#account').value.trim())){error('formError','Use a fictional account number containing 6–18 digits.');$('#account').focus();return;}const list=$('#reviewList');list.replaceChildren(...formFields.map(id=>{const row=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=labels[id];dd.textContent=$(`#${id}`).value;row.append(dt,dd);return row;}));$('#confirmDetails').checked=false;$('#finalCaptcha').value='';error('reviewError');showScreen(3);});
+$('#submitMock').addEventListener('click',()=>{error('reviewError');if(!$('#confirmDetails').checked){error('reviewError','Confirm that you reviewed the demo details.');return;}if($('#finalCaptcha').value.trim().toUpperCase()!=='7K2M'){error('reviewError','Enter the demo captcha 7K2M.');return;}showScreen(4);});
+$('#newPractice').addEventListener('click',()=>{document.querySelectorAll('main input').forEach(input=>{if(input.type==='checkbox')input.checked=false;else input.value='';});$('#otpBox').hidden=true;document.querySelectorAll('.error').forEach(item=>item.textContent='');showScreen(0);});
+showScreen(0);

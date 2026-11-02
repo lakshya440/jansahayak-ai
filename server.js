@@ -467,6 +467,7 @@ async function handleWhatsApp(raw) {
 const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://localhost');
   try {
+    if(req.method==='GET'&&url.pathname==='/mock-nsp'){res.writeHead(302,{location:'/mock-nsp.html','cache-control':'no-store'});res.end();return;}
     if(req.method==='GET' && url.pathname==='/api/health') return send(res,200,{ok:true,groq:!!GROQ_API_KEY,whatsapp:!!process.env.WHATSAPP_ACCESS_TOKEN,telegram:!!telegramToken,database:!!pool});
     if(req.method==='GET' && url.pathname==='/webhook/telegram') return send(res,200,{ok:true,telegram:!!telegramToken,message:'Telegram webhook endpoint is ready.'});
     if(req.method==='POST' && url.pathname==='/webhook/telegram') {

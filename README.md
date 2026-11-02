@@ -14,6 +14,10 @@ Sign up with a name, email, phone, and a password of at least 10 characters. Pas
 
 ## Voice and WhatsApp
 
+## Mock NSP sandbox
+
+Open `/mock-nsp` while the app is running to use the fictional scholarship registration sandbox. The demo OTP is `123456` and captcha is `7K2M`. It includes a simulated identity step, student and bank form, review, and fake application confirmation. It stores no data and has no connection to NSP, DigiLocker, UIDAI, or other government services. Use invented details only.
+
 The browser uses built-in speech recognition when supported. Otherwise, recorded audio is transcribed through Groq using `GROQ_TRANSCRIPTION_MODEL` (default `whisper-large-v3-turbo`). Browser-provided speech recognition is separate and does not use the Groq API key.
 
 The WhatsApp version accepts text and voice notes; voice notes are transcribed through Groq and replies use Groq browser search. To enable WhatsApp, deploy behind HTTPS, configure the webhook URL as `https://YOUR_HOST/webhook/whatsapp`, subscribe to `messages`, and set the same verify token in Meta and `.env`. Set `WHATSAPP_ACCESS_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` to enable replies. Set `WHATSAPP_APP_SECRET` to verify Meta webhook signatures.
