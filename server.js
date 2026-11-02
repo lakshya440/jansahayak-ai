@@ -291,6 +291,12 @@ function wantsApplication(text) {
   if(/how (?:do|can|to) i apply|steps? to apply|how to fill|आवेदन कैसे|अप्लाई कैसे/.test(q)) return false;
   return /apply\s+(?:in|for|to)\s+(?:this|it|that)\b|apply for me|apply on my behalf|apply.{0,60}(?:for me|on my behalf)|i\s+(?:want|need|wanna|would like)\s+(?:to\s+)?(?:apply|submit)|(?:can|could) you\s+(?:apply|submit|fill)|please\s+(?:apply|submit|fill)|help me\s+(?:apply|fill)|start (?:an? )?application|submit (?:an? )?application|मेरे लिए आवेदन|मैं आवेदन करना|मुझे आवेदन करना|आवेदन करना (?:चाहता|है)|आवेदन कर दीजिए|अप्लाई कर|मुझे अप्लाई करना|मेरे लिए फॉर्म/.test(q);
 }
+function wantsEshramApplication(text) {
+  const q=String(text||'').toLowerCase();
+  const mentionsEshram=/\b(?:e[\s-]?shram|shram card)\b|ई[\s-]?श्रम|श्रम कार्ड/u.test(q);
+  const wantsAction=/\b(?:apply|application|register|registration|enroll(?:ment)?|enrol(?:ment)?|sign\s*up)\b|आवेदन|अप्लाई|पंजीकरण|रजिस्टर/u.test(q);
+  return mentionsEshram&&wantsAction;
+}
 async function groqChat(systemPrompt, history, currentMessage, task='chat answer') {
   if(!GROQ_API_KEY) throw Object.assign(new Error('Chat answers need GROQ_API_KEY. Add your Groq API key to .env and restart the app.'),{status:503});
   const models=[...new Set([GROQ_CHAT_MODEL,GROQ_FALLBACK_MODEL].filter(Boolean))];
@@ -339,6 +345,12 @@ async function groqChat(systemPrompt, history, currentMessage, task='chat answer
 }
 async function reply(text, phone, history=[], profileContext='', channel='web') {
   const language=langOf(text), applicationIntent=wantsApplication(text);
+  if(channel==='Telegram'&&wantsEshramApplication(text)){
+    const answer=language==='Hindi'
+      ?'eShram पंजीकरण का अभ्यास Jan Sahayak के काल्पनिक sandbox में करें। वेबसाइट खोलें: https://jansahayak-ai-8rgc.onrender.com\nसीधे mock eShram sandbox: https://jansahayak-ai-8rgc.onrender.com/mock-eshram/index.html?runDemo=1\nयह केवल demo data है; यह आधिकारिक eShram सेवा से जुड़ा नहीं है।'
+      :'For an eShram registration practice run, open Jan Sahayak: https://jansahayak-ai-8rgc.onrender.com\nDirect mock eShram sandbox: https://jansahayak-ai-8rgc.onrender.com/mock-eshram/index.html?runDemo=1\nIt uses fictional demo data and is not connected to the official eShram service.';
+    return {answer,sources:[],language,schemes:[],action:null};
+  }
   if(!GROQ_API_KEY)throw Object.assign(new Error('Chat answers need GROQ_API_KEY. Add your Groq API key to .env and restart the app.'),{status:503});
   const channelNote=channel==='Telegram'?`The user is on Telegram. If they want to apply, direct them to the Jan Sahayak website at https://jansahayak-ai-8rgc.onrender.com to sign up or log in and save the scheme in their application dashboard. Then guide one next step at a time and ask them to reply “done” before continuing. Never ask them to send credentials in Telegram.`:channel!=='web'?`The user is on ${channel}. Do not claim that you can submit forms; tell them to use the official site.`:'';
   const contextNote=profileContext?`The following saved profile facts were provided with the user's consent. Use a fact only when it directly helps answer this question; the current message and conversation override older profile facts. Do not repeat the profile as a list. If essential eligibility details are missing, do not guess; ask one focused question. Saved profile: ${profileContext}.`:'';

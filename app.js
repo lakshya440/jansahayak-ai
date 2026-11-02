@@ -25,6 +25,7 @@ function cleanVoiceTranscript(value){
   return text.split(/(?<=[.!?।])\s+/u).filter(part=>{const key=part.trim().toLocaleLowerCase();if(!key||seen.has(key))return false;seen.add(key);return true;}).join(' ').slice(0,4000);
 }
 function wantsApplication(text){const q=String(text).toLowerCase();if(/how (?:do|can|to) i apply|steps? to apply|how to fill|आवेदन कैसे|अप्लाई कैसे/.test(q))return false;return /apply\s+(?:in|for|to)\s+(?:this|it|that)\b|apply for me|apply on my behalf|apply.{0,60}(?:for me|on my behalf)|i\s+(?:want|need|wanna|would like)\s+(?:to\s+)?(?:apply|submit)|(?:can|could) you\s+(?:apply|submit|fill)|please\s+(?:apply|submit|fill)|help me\s+(?:apply|fill)|start (?:an? )?application|submit (?:an? )?application|मेरे लिए आवेदन|मैं आवेदन करना|मुझे आवेदन करना|आवेदन करना (?:चाहता|है)|आवेदन कर दीजिए|अप्लाई कर|मुझे अप्लाई करना|मेरे लिए फॉर्म/.test(q);}
+function wantsEshramApplication(text){const q=String(text||'').toLowerCase();return /\b(?:e[\s-]?shram|shram card)\b|ई[\s-]?श्रम|श्रम कार्ड/u.test(q)&&/\b(?:apply|application|register|registration|enroll(?:ment)?|enrol(?:ment)?|sign\s*up)\b|आवेदन|अप्लाई|पंजीकरण|रजिस्टर/u.test(q);}
 function addMessage(role,text,typing=false){
   welcome.hidden=true;
   const item=document.createElement('div'); item.className=`message ${role}${typing?' typing':''}`;
@@ -39,6 +40,7 @@ function addApplicationCTA(container,schemeId=null){
 async function send(text){
   text=(text??input.value).trim(); if(!text||busy)return;
   if(activeApplyAssistant&&applyQuestionIndex<applyQuestions.length){input.value='';input.style.height='auto';handleApplyAnswer(text);return;}
+  if(wantsEshramApplication(text)){input.value='';input.style.height='auto';addMessage('user',text);addMessage('assistant','Opening the mock eShram sandbox in a new tab. It uses fictional demo details only.');chatHistory.push({role:'user',content:text},{role:'assistant',content:'Opening the mock eShram sandbox in a new tab. It uses fictional demo details only.'});startEshramDemo();return;}
   input.value=''; input.style.height='auto'; addMessage('user',text); const pending=addMessage('assistant',t('thinking'),true); busy=true;sendBtn.disabled=true;
   try{
     const response=await fetch('/api/chat',{method:'POST',headers:apiHeaders(),body:JSON.stringify({message:text,language:$('#language').value,conversationId:currentConversationId,history:chatHistory.slice(-10)})});
