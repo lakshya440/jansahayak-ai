@@ -25,8 +25,12 @@
 .assistant-embed .automation-dialog{inset:8px;width:calc(100% - 16px);height:calc(100% - 16px);border-radius:18px;box-shadow:0 8px 28px #26362d10}
 .assistant-embed .automation-dialog::backdrop{background:#ffffff00}
 .assistant-embed .automation-dialog form{padding:18px;border-radius:18px}
+.assistant-embed .automation-dialog{overflow:hidden}
+.assistant-embed .automation-dialog form{height:100%;max-height:100%;overflow-y:auto}
 .apply-run-progress{display:flex;align-items:center;gap:9px;margin:13px 0;padding:10px 11px;border:1px solid #e3ebe1;border-radius:12px;background:#f7faf5;color:#55715b;font-size:10px;line-height:1.45}
+.apply-run-progress[hidden]{display:none}
 .run-dots{display:inline-flex;align-items:center;gap:3px;flex:none}
+.run-dots[hidden]{display:none}
 .run-dots i{display:block;width:5px;height:5px;border-radius:50%;background:#3c8252;animation:run-dot 1s ease-in-out infinite}
 .run-dots i:nth-child(2){animation-delay:.14s}.run-dots i:nth-child(3){animation-delay:.28s}
 @keyframes run-dot{0%,60%,100%{opacity:.28;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
