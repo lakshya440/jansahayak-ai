@@ -22,6 +22,7 @@ function wirePracticeRegistration(){
 }
 function announceEshram(type,status,reference){const pageStatus=document.querySelector('#eshramDemoStatus');if(pageStatus)pageStatus.textContent=status;eshramChannel?.postMessage({type,status,reference})}
 function waitForDemo(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+const eshramDemoPauses={mobile:1500,otp:1800,details:2600};
 const defaultEshramDemo={mobile:'9211546800',otp:'123456',captcha:'7K2M',epfo:'No',esic:'No',name:'Meera Kumari',dob:'1994-06-18',gender:'Female',state:'Bihar',district:'Patna',occupation:'Tailor',education:'Secondary'};
 async function runEshramAutomation(values={}){
   if(eshramAutomationRunning)return;
@@ -35,12 +36,12 @@ async function runEshramAutomation(values={}){
     mobile.value=profile.mobile;captchaInput.value=profile.captcha;
     radios[profile.epfo==='Yes'?0:1].checked=true;radios[profile.esic==='Yes'?2:3].checked=true;
     mobile.dispatchEvent(new Event('input',{bubbles:true}));captchaInput.dispatchEvent(new Event('input',{bubbles:true}));
-    await waitForDemo(400);send.click();
+    await waitForDemo(eshramDemoPauses.mobile);send.click();
     const otpPanel=document.querySelector('#demoOtp')?.closest('.formpanel');
     if(!otpPanel||otpPanel.hidden)throw new Error('Could not start the mock registration.');
     announceEshram('eshram-automation-status','Entering the demo OTP · 123456.');
     const otp=document.querySelector('#demoOtp'),verify=document.querySelector('#verifyDemoOtp');
-    otp.value=profile.otp;otp.dispatchEvent(new Event('input',{bubbles:true}));await waitForDemo(350);verify.click();
+    otp.value=profile.otp;otp.dispatchEvent(new Event('input',{bubbles:true}));await waitForDemo(eshramDemoPauses.otp);verify.click();
     const detail=document.querySelector('#workerDetails');
     if(!detail||detail.closest('.formpanel').hidden)throw new Error('Could not open the worker details form.');
     announceEshram('eshram-automation-status','Filling the fictional worker details.');
@@ -51,7 +52,7 @@ async function runEshramAutomation(values={}){
     }
     if(!detail.checkValidity())throw new Error('A worker detail is missing or invalid.');
     announceEshram('eshram-automation-status','Worker details filled · reviewing the practice registration.');
-    await waitForDemo(900);detail.requestSubmit();
+    await waitForDemo(eshramDemoPauses.details);detail.requestSubmit();
     const card=document.querySelector('.reg-card'),receipt=[...card.querySelectorAll(':scope > .formpanel')].find(panel=>!panel.hidden);
     if(!receipt||!receipt.querySelector('h2')?.textContent.includes('Practice registration reviewed'))throw new Error('Could not create the practice review.');
     const reference=`ESHRAM-DEMO-${Date.now().toString(36).toUpperCase().slice(-6)}`,ref=document.createElement('p');
