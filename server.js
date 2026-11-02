@@ -360,23 +360,40 @@ async function handleTelegram(raw){
   const update=JSON.parse(raw.toString('utf8'));
   const message=update.message||update.edited_message;
   const chatId=message?.chat?.id;
-  const text=String(message?.text||message?.caption||'').trim();
-  if(!chatId||!text)return;
-  console.info(`[Telegram] Received message update ${update.update_id} (${text.length} characters).`);
-  if(/^\/(start|help)(?:@\w+)?(?:\s|$)/i.test(text)){
+  let text=String(message?.text||message?.caption||'').trim();
+  const audio=message?.voice||message?.audio;
+  if(!chatId||(!text&&!audio))return;
+  console.info(`[Telegram] Received ${audio?'voice':'text'} update ${update.update_id}${text?` (${text.length} characters)`:''}.`);
+  if(text&&/^\/(start|help)(?:@\w+)?(?:\s|$)/i.test(text)){
     await sendTelegram(chatId,'नमस्ते! मैं Jan Sahayak हूँ। सरकारी योजनाओं के बारे में हिंदी या English में पूछें।\n\nHi! I’m Jan Sahayak. Ask me about government schemes in Hindi or English.');
     console.info(`[Telegram] Sent welcome response for update ${update.update_id}.`);
     return;
   }
   const sender=`telegram:${chatId}`;
   try{
+    if(audio){
+      await fetch(`https://api.telegram.org/bot${telegramToken}/sendChatAction`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chatId,action:'typing'})}).catch(()=>{});
+      const fileId=audio.file_id;
+      const fileResponse=await fetch(`https://api.telegram.org/bot${telegramToken}/getFile?file_id=${encodeURIComponent(fileId)}`);
+      const fileData=await fileResponse.json().catch(()=>({}));
+      if(!fileResponse.ok||!fileData.ok||!fileData.result?.file_path)throw new Error(fileData.description||'Telegram could not locate the voice file.');
+      if(fileData.result.file_size>20*1024*1024)throw new Error('Voice note exceeds Telegram download limit.');
+      const audioResponse=await fetch(`https://api.telegram.org/file/bot${telegramToken}/${fileData.result.file_path}`);
+      if(!audioResponse.ok)throw new Error(`Telegram voice download failed (HTTP ${audioResponse.status}).`);
+      const audioBuffer=Buffer.from(await audioResponse.arrayBuffer());
+      if(audioBuffer.length>20*1024*1024)throw new Error('Voice note exceeds Telegram download limit.');
+      const mime=String(audio.mime_type||'audio/ogg').split(';')[0].trim().toLowerCase();
+      text=await transcribe(audioBuffer,mime)||'';
+      if(!text){await sendTelegram(chatId,'I could not recognize speech in that voice note. Please try again or type your question.\nमैं इस वॉइस नोट को समझ नहीं पाया। कृपया फिर से भेजें या सवाल लिखें।');return;}
+      console.info(`[Telegram] Transcribed voice update ${update.update_id} (${text.length} characters).`);
+    }
     const history=pool?await db('recent_messages',{phone:sender}):[];
     await fetch(`https://api.telegram.org/bot${telegramToken}/sendChatAction`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chatId,action:'typing'})}).catch(()=>{});
     const result=await reply(text,pool?sender:null,history,'','Telegram');
     const sources=result.sources?.length?'\n\nSources:\n'+result.sources.map((source,i)=>`${i+1}. ${source.title}: ${source.url}`).join('\n'):'';
     await sendTelegram(chatId,result.answer+sources);
     console.info(`[Telegram] Replied to update ${update.update_id}.`);
-  }catch(error){console.error('[Telegram] Message processing failed:',error.status||'',error.message);await sendTelegram(chatId,'The AI service is temporarily unavailable. Please try again shortly.');}
+  }catch(error){console.error(`[Telegram] ${audio?'Voice':'Message'} processing failed:`,error.status||'',error.message);await sendTelegram(chatId,audio?'I could not process that voice note. Please try again or type your question.\nमैं इस वॉइस नोट को प्रोसेस नहीं कर पाया। कृपया फिर से भेजें या सवाल लिखें।':'The AI service is temporarily unavailable. Please try again shortly.');}
 }
 async function configureTelegramWebhook(){
   if(!telegramToken)return;
