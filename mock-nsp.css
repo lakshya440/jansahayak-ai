@@ -3,3 +3,5 @@
 
 .assistant-launch{margin:13px 0 15px;padding:12px 10px;background:#edf4eb;border:1px solid #dce9da;border-radius:8px}.assistant-launch strong{font-size:10px;color:#3c6444}.assistant-launch p{font-size:9px;line-height:1.5;color:#7c8a7e;margin:6px 0 10px}.assistant-launch .primary{height:auto;min-height:34px;white-space:normal;padding:8px;font-size:9px}
 .assistant-launch{margin:0 0 16px;padding:12px 10px}.assistant-launch .eyebrow{margin-bottom:7px}.assistant-launch>strong{display:block;line-height:1.4}.assistant-frame{display:block;width:100%;height:570px;border:1px solid #e1e8df;border-radius:7px;background:white}.assistant-privacy{display:block;margin-top:8px;color:#879287;font-size:8px;line-height:1.4}.journey-title{padding-top:13px;border-top:1px solid #e3e9e2}@media(max-width:700px){.assistant-frame{height:620px}.steps-card{max-height:none}}
+
+.layout{grid-template-columns:minmax(310px,350px) minmax(0,1fr)}.assistant-frame{height:610px}.assistant-launch{min-width:0}.steps-card{min-width:0}@media(max-width:700px){.layout{grid-template-columns:minmax(0,1fr)}.assistant-frame{height:620px}}
