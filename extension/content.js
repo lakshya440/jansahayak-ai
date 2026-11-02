@@ -1,129 +1,86 @@
 (() => {
-  const HOST=location.hostname.toLowerCase();
-  const OFFICIAL=location.protocol==='https:'&&(HOST==='gov.in'||HOST.endsWith('.gov.in')||HOST==='nic.in'||HOST.endsWith('.nic.in'));
-  const LOCAL=location.protocol==='http:'&&HOST==='localhost'&&location.pathname.startsWith('/mock-nsp');
-  if(!OFFICIAL&&!LOCAL)return;
+  if (window.__sahayakGuideInstalled) return;
+  window.__sahayakGuideInstalled = true;
 
-  const secretField=/aadhaar|aadhar|uidai|pan.?number|otp|one.?time|captcha|recaptcha|hcaptcha|verification.?code|security.?code|password|passcode|pin.?code|signature|biometric|face.?verification|consent|agree|upload|file/i;
-  const challenge=/captcha|recaptcha|hcaptcha|one.?time password|\botp\b|verification code|verify your (?:mobile|phone|identity)|human verification|i am not a robot|aadhaar face|biometric verification|मानव सत्यापन|ओटीपी|कैप्चा|सत्यापन कोड/i;
-  const bankField=/bank|account.?number|account.?holder|ifsc|micr|branch.?code/i;
-  let profile=null,baseProfile=null,documentProfile={},widget=null,statusNode=null,filledCount=0,challengeVisible=false,scanTimer=0,lastStepKey='';
+  let active = false;
+  let widget;
+  let observer;
+  let timer;
+  const challengePattern = /captcha|recaptcha|hcaptcha|\botp\b|one.?time password|verification code|verify your (?:mobile|phone|identity)|human verification|i am not a robot|aadhaar face|biometric/i;
+  const stopWords = /aadhaar|aadhar|otp|captcha|password|passcode|pin|signature|biometric|consent|agree|upload|file/i;
+  const css = `
+    :host{all:initial;position:fixed;right:20px;bottom:20px;z-index:2147483647;font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif;color:#20352a}
+    *{box-sizing:border-box} .panel{width:min(360px,calc(100vw - 32px));max-height:min(74vh,680px);display:flex;flex-direction:column;background:#fff;border:1px solid #dbe7dc;border-radius:20px;box-shadow:0 18px 60px #10231938;overflow:hidden}
+    .head{display:flex;align-items:center;gap:11px;padding:15px 17px;background:#eff6ee;border-bottom:1px solid #e2ece0}.mark{display:grid;place-items:center;width:38px;height:38px;border-radius:13px;background:#236c49;color:white;font-weight:800;font-size:17px}.brand{font-weight:750;font-size:14px}.sub{display:block;color:#718375;font-size:9px;letter-spacing:1px;font-weight:700}.pulse{width:9px;height:9px;margin-left:auto;border-radius:50%;background:#30a46c;box-shadow:0 0 0 4px #d7efdd;animation:pulse 1.7s infinite}@keyframes pulse{50%{box-shadow:0 0 0 8px #d7efdd55}}
+    .content{overflow:auto;padding:17px}.eyebrow{font-size:9px;letter-spacing:1.5px;font-weight:800;color:#698871}.title{margin:5px 0 7px;font-size:20px;line-height:1.2;letter-spacing:-.5px}.advice{margin:0 0 14px;color:#54665a;font-size:12px}.stats{display:flex;gap:8px;margin:0 0 14px}.stat{flex:1;padding:9px 10px;border:1px solid #e4ebe2;border-radius:12px;background:#f8faf7;color:#667568;font-size:10px}.stat b{display:block;color:#244d34;font-size:17px}.alert{margin:0 0 13px;padding:10px 11px;border:1px solid #f0ddb2;border-radius:12px;background:#fff8e8;color:#7b5823;font-size:11px}.section{margin:14px 0 7px;color:#728276;font-size:9px;font-weight:800;letter-spacing:1.15px;text-transform:uppercase}.list{margin:0;padding:0;list-style:none}.row{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid #edf1ec;color:#394b3e;font-size:11px}.badge{flex:0 0 17px;height:17px;display:grid;place-items:center;border-radius:50%;background:#eaf3e9;color:#33714c;font-size:10px;font-weight:800}.row button{margin-left:auto;padding:4px 7px;border:1px solid #d8e5d7;border-radius:8px;background:#fff;color:#356849;font:600 9px system-ui,sans-serif;cursor:pointer}.empty{padding:10px;border-radius:11px;background:#f4f8f2;color:#59705e;font-size:11px}.actions{display:flex;gap:8px;padding:12px 16px;border-top:1px solid #e9eee7}.actions button{flex:1;min-height:36px;border:1px solid #dbe6d9;border-radius:11px;background:#f8faf7;color:#355b40;font:650 11px system-ui,sans-serif;cursor:pointer}.actions .primary{background:#236c49;border-color:#236c49;color:#fff}.foot{padding:0 17px 13px;color:#879388;font-size:9px}.close{margin-left:5px;border:0;background:transparent;color:#526658;font-size:20px;cursor:pointer}
+  `;
 
-  function announce(text,attention=false){
-    if(!widget){widget=document.createElement('div');widget.id='sahayak-ai-extension';const shadow=widget.attachShadow({mode:'open'});shadow.innerHTML=`<style>
-      :host{all:initial;position:fixed;right:18px;bottom:18px;z-index:2147483647;font-family:Arial,sans-serif;color:#24342a}
-      *{box-sizing:border-box}.card{width:min(320px,calc(100vw - 36px));border:1px solid #dce7db;border-radius:16px;background:#fff;box-shadow:0 12px 40px #17251c30;overflow:hidden}
-      .head{display:flex;align-items:center;gap:9px;padding:11px 13px;background:#f0f6ee;border-bottom:1px solid #e3ebe1}
-      img{width:27px;height:27px}.title{font-weight:700;font-size:12px}.sub{display:block;margin-top:2px;color:#7f8d81;font-size:8px;letter-spacing:.7px}
-      .dot{width:7px;height:7px;margin-left:auto;border-radius:50%;background:#579367}.body{padding:11px 13px 12px;font-size:11px;line-height:1.45}
-      .note{display:block;margin-top:5px;color:#88948a;font-size:9px}.attention{color:#965f29}.count{color:#32734b;font-weight:700}
-      </style><div class="card" role="status" aria-live="polite"><div class="head"><img src="${chrome.runtime.getURL('icons/icon48.png')}" alt=""><div><span class="title">Sahayak AI</span><small class="sub">GOVERNMENT FORM HELPER</small></div><span class="dot"></span></div><div class="body"><span class="message">Looking for saved fields…</span><small class="note">You control verification, navigation, and submission.</small></div></div>`;document.documentElement.append(widget);statusNode=shadow.querySelector('.message');
-    }
-    statusNode.className=attention?'message attention':'message';statusNode.textContent=text;
+  function textOf(node) { return (node?.innerText || node?.textContent || '').replace(/\s+/g, ' ').trim(); }
+  function visible(node) { return node?.isConnected && node.getClientRects().length > 0 && getComputedStyle(node).visibility !== 'hidden'; }
+  function labelFor(field) {
+    const labels = [...(field.labels || [])].map(textOf);
+    const parent = field.closest('label');
+    const labelledBy = (field.getAttribute('aria-labelledby') || '').split(/\s+/).map(id => textOf(document.getElementById(id)));
+    const near = textOf(field.parentElement).slice(0, 110);
+    return [...labels, textOf(parent), ...labelledBy, field.getAttribute('aria-label'), field.placeholder, field.name, field.id, near].filter(Boolean).join(' · ').replace(/\s+/g, ' ').slice(0, 150);
   }
-
-  function fieldDescription(field){
-    const labels=[...(field.labels||[])].map(label=>label.innerText||label.textContent||'').join(' ');
-    return [labels,field.getAttribute('aria-label'),field.getAttribute('placeholder'),field.name,field.id,field.autocomplete].filter(Boolean).join(' ').toLowerCase().replace(/[_-]+/g,' ');
+  function scanPage() {
+    const heading = textOf(document.querySelector('main h1,h1,[role="heading"][aria-level="1"],main h2,h2,h3')) || document.title || 'Current page';
+    const fields = [...document.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=reset]),select,textarea,[role=combobox]')].filter(visible);
+    const required = fields.filter(field => field.required || field.getAttribute('aria-required') === 'true' || /\*/.test(labelFor(field)));
+    const blank = required.filter(field => !String(field.value || '').trim());
+    const labels = [...new Set(blank.map(labelFor).filter(label => label && !stopWords.test(label)))].slice(0, 6);
+    const pageText = (document.body?.innerText || '').slice(0, 30000);
+    const explicitChallengeCopy = /(?:enter|type|provide|verify with).{0,35}(?:captcha|\botp\b|one.?time password)|(?:captcha|\botp\b).{0,25}(?:code|verification|enter)|aadhaar face|biometric verification|human verification/i.test(pageText);
+    const verification = explicitChallengeCopy || fields.some(field => challengePattern.test(labelFor(field)));
+    const stage = /review|preview|confirm|summary/i.test(heading) ? 'Review your application' : /document|upload|certificate/i.test(heading) ? 'Add the requested documents' : /login|sign.?in|mobile|otp/i.test(heading) ? 'Sign in to continue' : /register|registration|application|student|personal/i.test(heading) ? 'Complete this application step' : 'Continue through this scheme page';
+    const buttons = [...document.querySelectorAll('button,input[type=submit],[role=button],a')].filter(visible).map(textOf).filter(text => /^(next|continue|proceed|save and continue|review|submit|verify)$/i.test(text)).slice(0, 3);
+    return { heading: heading.slice(0, 100), fields, required, blank, labels, verification, stage, buttons };
   }
-  function hidden(field){return !field.isConnected||field.disabled||field.readOnly||field.getClientRects().length===0||getComputedStyle(field).visibility==='hidden';}
-  function classify(field){
-    const text=fieldDescription(field),type=(field.type||'').toLowerCase();
-    if(secretField.test(text)||['hidden','password','file','checkbox','radio','button','submit','reset','image'].includes(type)||field.isContentEditable)return null;
-    if(/father|mother|guardian|husband|wife|parent|emergency|alternate|relative/.test(text)&&/name|phone|mobile|contact/.test(text))return null;
-    const rules=[
-      ['dob',/date of birth|birth date|\bdob\b|जन्म.?तिथि/],
-      ['account_holder',/account holder|name on (?:the )?account|खाताधारक/],
-      ['ifsc',/\bifsc\b|bank.?branch.?code/],
-      ['account_number',/bank account|account number|account no\b|a\/c number|\ba\/c no\b/],
-      ['annual_income',/annual (?:family )?income|family income|household income|वार्षिक आय|पारिवारिक आय/],
-      ['marks',/class.?12 marks|marks percentage|aggregate marks|percentage of marks|प्रतिशत अंक/],
-      ['institution',/school name|institution name|college name|विद्यालय|संस्थान का नाम/],
-      ['course',/course|class|standard|grade|कक्षा|पाठ्यक्रम/],
-      ['district',/district|जिला|ज़िला/],
-      ['state',/state|राज्य/],
-      ['category',/caste|social category|applicant category|category|जाति|श्रेणी/],
-      ['land_acres',/land (?:owned|holding|area|cultivated)|acreage|भूमि/],
-      ['education_level',/education level|highest education|शिक्षा स्तर/],
-      ['age',/\bage\b|आयु/],
-      ['phone',/mobile number|phone number|contact number|मोबाइल|फ़ोन नंबर|फोन नंबर/],
-      ['email',/email|e mail|ईमेल/],
-      ['name',/full name|applicant name|student name|beneficiary name|name of applicant|name of student|पूरा नाम|आवेदक का नाम/]
-    ];
-    return rules.find(([,pattern])=>pattern.test(text))?.[0]||null;
+  function element(tag, attrs = {}, content = '') { const node = document.createElement(tag); Object.entries(attrs).forEach(([key, value]) => { if (key === 'className') node.className = value; else if (key === 'text') node.textContent = value; else node.setAttribute(key, value); }); if (content) node.textContent = content; return node; }
+  function ensureWidget() {
+    if (widget?.isConnected) return widget.shadowRoot;
+    widget = document.createElement('div'); widget.id = 'sahayak-scheme-guide';
+    const shadow = widget.attachShadow({ mode: 'open' });
+    const style = element('style'); style.textContent = css; shadow.append(style);
+    const panel = element('section', { className: 'panel', role: 'region', 'aria-label': 'Sahayak scheme page guide' });
+    const head = element('header', { className: 'head' });
+    head.append(element('div', { className: 'mark', text: 'S' }));
+    const brand = element('div', { text: 'Sahayak Guide' }); brand.className = 'brand'; brand.append(element('small', { className: 'sub', text: 'SCHEME PAGE NAVIGATOR' }));
+    const pulse = element('span', { className: 'pulse', 'aria-hidden': 'true' });
+    const close = element('button', { className: 'close', type: 'button', 'aria-label': 'Stop page guide', text: '×' }); close.addEventListener('click', stop);
+    head.append(brand, pulse, close);
+    const content = element('div', { className: 'content' }); content.id = 'content';
+    const actions = element('div', { className: 'actions' });
+    const rescan = element('button', { type: 'button', className: 'primary', text: 'Rescan this step' }); rescan.addEventListener('click', renderScan);
+    actions.append(rescan);
+    panel.append(head, content, actions, element('div', { className: 'foot', text: 'You enter answers and control every button. Page reading stays in this browser tab.' }));
+    shadow.append(panel); document.documentElement.append(widget); return shadow;
   }
-  function normalized(value){return String(value||'').trim().toLowerCase().replace(/[\s._-]+/g,'');}
-  function valueFor(kind){
-    if(!profile)return '';
-    if(bankField.test(kind)&&!profile.allow_bank_details)return '';
-    return String(profile[kind]??'').trim();
+  function renderScan() {
+    if (!active) return;
+    const data = scanPage();
+    const shadow = ensureWidget(); const content = shadow.getElementById('content'); content.replaceChildren();
+    content.append(element('div', { className: 'eyebrow', text: 'CURRENT STEP' }), element('h2', { className: 'title', text: data.heading }));
+    content.append(element('p', { className: 'advice', text: data.verification ? 'A human verification step may be present. Complete OTP, CAPTCHA, or identity checks yourself, then I’ll scan what comes next.' : `${data.stage}. Review the page and enter the requested information yourself. I’ll guide you again after you move to the next step.` }));
+    const stats = element('div', { className: 'stats' });
+    const done = Math.max(0, data.required.length - data.blank.length);
+    [[done, 'required complete'], [data.blank.length, 'required to review']].forEach(([number, caption]) => { const stat = element('div', { className: 'stat' }); stat.append(element('b', { text: String(number) }), document.createTextNode(caption)); stats.append(stat); });
+    content.append(stats);
+    if (data.verification) content.append(element('div', { className: 'alert', text: 'Human check detected: handle it on the website. Sahayak will not solve or submit it.' }));
+    content.append(element('div', { className: 'section', text: 'Required fields to review' }));
+    if (data.labels.length) {
+      const list = element('ul', { className: 'list' });
+      data.labels.forEach((label, index) => { const row = element('li', { className: 'row' }); row.append(element('span', { className: 'badge', text: '!' }), element('span', { text: label })); const focus = element('button', { type: 'button', text: 'Show' }); focus.addEventListener('click', () => { const field = data.blank.find(item => labelFor(item) === label); if (field) { field.scrollIntoView({ behavior: 'smooth', block: 'center' }); field.focus({ preventScroll: true }); } }); row.append(focus); list.append(row); }); content.append(list);
+    } else content.append(element('div', { className: 'empty', text: data.required.length ? 'All visible required fields appear complete. Review the entries, then continue when ready.' : 'No visible required fields found. Review the page instructions and continue when ready.' }));
+    if (data.buttons.length) content.append(element('div', { className: 'section', text: `Page action available: ${data.buttons.join(' · ')}` }));
   }
-  function selectValue(select,value){
-    const wanted=normalized(value),aliases={sc:['sc','scheduledcaste'],st:['st','scheduledtribe'],obc:['obc','otherbackwardclass'],ews:['ews','economicallyweakersection']};
-    const terms=aliases[wanted]||[wanted];
-    const option=[...select.options].find(item=>{const text=normalized(`${item.value} ${item.textContent}`);return terms.some(term=>term&&text.includes(term));});
-    if(!option||!option.value)return false;
-    select.value=option.value;return true;
+  function scheduleScan() { clearTimeout(timer); timer = setTimeout(() => { if (active) renderScan(); }, 500); }
+  function start() {
+    active = true; renderScan();
+    if (!observer) { observer = new MutationObserver(records => { if (records.some(record => { const target = record.target; return !widget || (target !== widget && !widget.contains(target) && !widget.shadowRoot?.contains(target)); })) scheduleScan(); }); observer.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-required', 'required', 'disabled', 'hidden', 'class'] }); window.addEventListener('popstate', scheduleScan); window.addEventListener('hashchange', scheduleScan); }
   }
-  function setField(field,value){
-    if(field instanceof HTMLSelectElement){if(!selectValue(field,value))return false;}
-    else if(field.type==='date'){
-      const parsed=new Date(value);if(!/^\d{4}-\d{2}-\d{2}$/.test(value)||Number.isNaN(parsed.getTime()))return false;
-      field.value=value;
-    }else field.value=value;
-    field.dispatchEvent(new Event('input',{bubbles:true}));field.dispatchEvent(new Event('change',{bubbles:true}));
-    const prior=field.style.outline;field.style.outline='2px solid #388653';setTimeout(()=>field.style.outline=prior,1800);return true;
-  }
-  function verificationNeeded(){
-    const pageText=(document.body?.innerText||'').slice(0,50000);
-    const verificationField=[...document.querySelectorAll('input,textarea')].some(field=>challenge.test(fieldDescription(field))&&!hidden(field));
-    return verificationField||challenge.test(pageText);
-  }
-  function pageTitle(){return (document.querySelector('main h1,h1,[role="heading"][aria-level="1"],h2,h3')?.innerText||document.title||'this form step').trim().replace(/\s+/g,' ').slice(0,90);}
-  function stepKey(){const fields=[...document.querySelectorAll('input,select,textarea')].filter(field=>!hidden(field)).slice(0,14).map(fieldDescription).join('|'),copy=(document.querySelector('main')?.innerText||document.body?.innerText||'').replace(/\s+/g,' ').slice(0,220);return `${location.href}|${pageTitle()}|${fields}|${copy}`;}
-  function nextStepText(count,needsHelp){
-    if(needsHelp)return 'Step needs your attention: complete the OTP, CAPTCHA, or identity check yourself. Then choose Continue on the page; I’ll scan the next step.';
-    if(count)return `${pageTitle()}: I filled ${count} matching blank field${count===1?'':'s'} from your reviewed documents. Check the highlighted values, then choose Continue or Next on the page. I’ll suggest the next step when it changes.`;
-    if(filledCount)return `${pageTitle()}: your matching details are filled. Review them, then choose Continue or Next on the page. I’ll scan and guide you on the next step.`;
-    if(profile)return `${pageTitle()}: I don’t see another matching blank field to fill. Complete any required item you know, then choose Continue or Next; I’ll scan the next page.`;
-    return `${pageTitle()}: open the Sahayak extension, choose the student’s documents, review the extracted suggestions, and tap Fill this page. I’ll guide you again after the page changes.`;
-  }
-  function scan(){
-    const key=stepKey();if(key!==lastStepKey){lastStepKey=key;filledCount=0;}
-    const needsHelp=verificationNeeded();
-    if(needsHelp&&!challengeVisible){challengeVisible=true;announce(nextStepText(0,true),true);chrome.runtime.sendMessage({type:'sahayak-verification-required'}).catch(()=>{});}
-    if(!needsHelp)challengeVisible=false;
-    let count=0;
-    for(const field of document.querySelectorAll('input,select,textarea')){
-      if(hidden(field)||field.value?.trim())continue;
-      const kind=classify(field);if(!kind)continue;
-      const value=valueFor(kind);if(!value)continue;
-      if(kind==='account_number'||kind==='account_holder'||kind==='ifsc')if(!profile.allow_bank_details)continue;
-      if(setField(field,value))count++;
-    }
-    if(count)filledCount+=count;
-    if(needsHelp)announce(nextStepText(0,true),true);
-    else announce(nextStepText(count,false),false);
-    return count;
-  }
-  function scheduleScan(){clearTimeout(scanTimer);scanTimer=setTimeout(scan,450);}
-  function startObserver(){const observer=new MutationObserver(records=>{const pageChanged=records.some(record=>{const target=record.target; if(widget&&(target===widget||widget.contains(target)))return false;const nodes=[...record.addedNodes,...record.removedNodes];return !nodes.length||!nodes.every(node=>node===widget||(node.nodeType===1&&widget?.contains(node)));});if(pageChanged)scheduleScan();});observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['value','disabled','hidden']});document.addEventListener('input',scheduleScan,true);document.addEventListener('change',scheduleScan,true);window.addEventListener('popstate',scheduleScan);window.addEventListener('hashchange',scheduleScan);}
-
-  chrome.runtime.onMessage.addListener((message,_sender,sendResponse)=>{
-    if(message?.type==='sahayak-fill-from-documents'){
-      const values=message.values&&typeof message.values==='object'?message.values:{};
-      documentProfile={...values};profile={...(baseProfile||{}),...documentProfile,allow_bank_details:values.allow_bank_details===true||baseProfile?.allow_bank_details===true};
-      const count=scan();sendResponse({filled:count,status:count?`Filled ${count} matching blank field${count===1?'':'s'} from the reviewed documents.`:'Scanned the page. No matching blank fields were found.'});return;
-    }
-    if(message?.type==='sahayak-clear-document-data'){documentProfile={};profile=baseProfile;scan();sendResponse({status:'Document suggestions cleared from this page.'});return;}
-    if(message?.type==='sahayak-scan-now'){const count=scan();sendResponse({status:count?`Sahayak filled ${count} blank field${count===1?'':'s'}.`:'Sahayak scanned this page.'});}
-  });
-  announce('Sahayak is checking this page.');startObserver();
-  chrome.runtime.sendMessage({type:'sahayak-get-profile'}).then(result=>{
-    baseProfile=result?.baseProfile||null;documentProfile=result?.documentProfile||{};profile=result?.connected?result.profile:null;
-    if(result?.error)announce(`${result.error} You can still choose documents in the extension popup.`,true);
-    else if(profile)announce(`Sahayak is ready with ${result.source==='documents'?'your reviewed documents':'your connected profile'}.`,false);
-    else announce('Sahayak is ready. Open the extension, choose documents, and review the extracted fields to begin.',false);
-    scan();
-  }).catch(()=>{announce('Sahayak is ready. Open the extension, choose documents, and review the extracted fields to begin.',false);scan();});
+  function stop() { active = false; observer?.disconnect(); observer = null; widget?.remove(); widget = null; chrome.runtime.sendMessage({ type: 'sahayak-stop-tab-guide' }).catch(() => {}); }
+  chrome.runtime.onMessage.addListener(message => { if (message?.type === 'sahayak-start-guide') start(); if (message?.type === 'sahayak-stop-guide') { active = false; observer?.disconnect(); observer = null; widget?.remove(); widget = null; } });
+  chrome.runtime.sendMessage({ type: 'sahayak-guide-state' }).then(state => { if (state?.active) start(); }).catch(() => {});
 })();

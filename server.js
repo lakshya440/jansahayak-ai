@@ -27,8 +27,6 @@ const GROQ_FALLBACK_MODEL = (process.env.GROQ_FALLBACK_MODEL || 'openai/gpt-oss-
 const GROQ_TRANSCRIPTION_MODEL = (process.env.GROQ_TRANSCRIPTION_MODEL || 'whisper-large-v3-turbo').trim();
 const GROQ_WEB_SEARCH = (process.env.GROQ_WEB_SEARCH || 'true').trim().toLowerCase() !== 'false';
 const JWT_SECRET = process.env.AUTH_JWT_SECRET || '';
-const extensionPairings = new Map();
-const extensionPairAttempts = new Map();
 
 const pool = process.env.DATABASE_URL ? new pg.Pool({
   connectionString: process.env.DATABASE_URL,
@@ -204,11 +202,9 @@ async function db(action, payload) {
 const publicUser = user => ({id:user.id,email:user.email,phone:user.phone,name:user.name,user_type:user.user_type,state:user.state,district:user.district,age:user.age,category:user.category,land_acres:user.land_acres,education_level:user.education_level,consent:user.consent});
 function authReady(){if(!pool)throw Object.assign(new Error('Database is not configured. Set DATABASE_URL in .env.'),{status:503});if(!JWT_SECRET)throw Object.assign(new Error('Authentication is not configured. Add AUTH_JWT_SECRET to .env and restart.'),{status:503});}
 function signToken(user){const now=Math.floor(Date.now()/1000),head=Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url'),body=Buffer.from(JSON.stringify({sub:user.id,iat:now,exp:now+7*24*60*60})).toString('base64url'),unsigned=`${head}.${body}`,sig=crypto.createHmac('sha256',JWT_SECRET).update(unsigned).digest('base64url');return `${unsigned}.${sig}`;}
-function signExtensionToken(userId){const now=Math.floor(Date.now()/1000),head=Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url'),body=Buffer.from(JSON.stringify({sub:userId,aud:'sahayak-browser-extension',scope:'profile:read',iat:now,exp:now+7*24*60*60})).toString('base64url'),unsigned=`${head}.${body}`,sig=crypto.createHmac('sha256',JWT_SECRET).update(unsigned).digest('base64url');return `${unsigned}.${sig}`;}
 function verifyToken(token){try{const [head,payload,signature]=token.split('.');if(!head||!payload||!signature)return null;const unsigned=`${head}.${payload}`,expected=crypto.createHmac('sha256',JWT_SECRET).update(unsigned).digest(),actual=Buffer.from(signature,'base64url');if(actual.length!==expected.length||!crypto.timingSafeEqual(actual,expected))return null;const data=JSON.parse(Buffer.from(payload,'base64url').toString());return data.exp>Date.now()/1000?data:null;}catch{return null;}}
 function bearer(req){const match=String(req.headers.authorization||'').match(/^Bearer\s+(.+)$/i);return match?.[1]||'';}
 async function authenticatedUser(req){authReady();const claims=verifyToken(bearer(req));if(!claims||claims.aud||claims.scope)throw Object.assign(new Error('Please log in to continue.'),{status:401});const {rows}=await readQuery('SELECT * FROM users WHERE id=$1',[claims.sub]);if(!rows[0])throw Object.assign(new Error('Account not found. Please log in again.'),{status:401});return rows[0];}
-async function extensionProfile(req){authReady();const claims=verifyToken(bearer(req));if(!claims||claims.aud!=='sahayak-browser-extension'||claims.scope!=='profile:read')throw Object.assign(new Error('Reconnect the Sahayak extension to your account.'),{status:401});const {rows}=await readQuery('SELECT * FROM users WHERE id=$1',[claims.sub]);if(!rows[0])throw Object.assign(new Error('Account not found. Reconnect the extension.'),{status:401});return publicUser(rows[0]);}
 function normalizeEmail(value){return String(value||'').trim().toLowerCase();}
 function validEmail(value){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);}
 function hashPassword(password){const salt=crypto.randomBytes(16).toString('hex');return new Promise((resolve,reject)=>crypto.scrypt(password,salt,64,(error,key)=>error?reject(error):resolve(`${salt}:${key.toString('hex')}`)));}
@@ -527,24 +523,6 @@ const server=http.createServer(async(req,res)=>{
       const {rows}=await pool.query('SELECT * FROM users WHERE LOWER(email)=$1',[email]);const user=rows[0];if(!user?.password_hash||!await verifyPassword(password,user.password_hash))return send(res,401,{error:'Email or password is incorrect.'});return send(res,200,{token:signToken(user),user:publicUser(user)});
     }
     if(req.method==='GET' && url.pathname==='/api/auth/me') {const user=await authenticatedUser(req);return send(res,200,{user:publicUser(user)});}
-    if(req.method==='POST' && url.pathname==='/api/extension/pairing') {
-      const user=await authenticatedUser(req),input=await jsonBody(req),now=Date.now();
-      if(input.extensionConsent!==true)return send(res,400,{error:'Please consent to connect the browser extension to your saved profile.'});
-      for(const [code,pairing]of extensionPairings)if(pairing.expiresAt<=now)extensionPairings.delete(code);
-      const active=[...extensionPairings.entries()].find(([,pairing])=>pairing.userId===user.id&&pairing.expiresAt>now);
-      if(active)return send(res,200,{code:active[0],expiresIn:Math.ceil((active[1].expiresAt-now)/1000)});
-      const lastIssued=extensionPairAttempts.get(`issue:${user.id}`)||0;if(now-lastIssued<30000)return send(res,429,{error:'Wait a few seconds before creating another connection code.'});
-      const code=String(crypto.randomInt(100000000,999999999));extensionPairings.set(code,{userId:user.id,expiresAt:now+5*60*1000});extensionPairAttempts.set(`issue:${user.id}`,now);
-      return send(res,201,{code,expiresIn:300});
-    }
-    if(req.method==='POST' && url.pathname==='/api/extension/connect') {
-      authReady();const ip=req.socket.remoteAddress||'unknown',now=Date.now(),attempts=(extensionPairAttempts.get(`connect:${ip}`)||[]).filter(time=>now-time<10*60*1000);
-      if(attempts.length>=8)return send(res,429,{error:'Too many connection attempts. Wait 10 minutes and try again.'});
-      attempts.push(now);extensionPairAttempts.set(`connect:${ip}`,attempts);const input=await jsonBody(req),code=String(input.code||'').replace(/\s/g,'');if(!/^\d{9}$/.test(code))return send(res,400,{error:'Enter the 9-digit connection code shown in Jan Sahayak.'});
-      const pairing=extensionPairings.get(code);extensionPairings.delete(code);if(!pairing||pairing.expiresAt<=now)return send(res,401,{error:'That code expired or was already used. Create a new one in Jan Sahayak.'});
-      return send(res,200,{token:signExtensionToken(pairing.userId),expiresIn:7*24*60*60});
-    }
-    if(req.method==='GET' && url.pathname==='/api/extension/profile')return send(res,200,{profile:await extensionProfile(req)});
     if(req.method==='POST' && url.pathname==='/api/profile') {
       const user=await authenticatedUser(req),input=await jsonBody(req);
       if(!input.consent) return send(res,400,{error:'Please give consent before saving your profile.'});
