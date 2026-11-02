@@ -5,3 +5,22 @@
 .assistant-launch{margin:0 0 16px;padding:12px 10px}.assistant-launch .eyebrow{margin-bottom:7px}.assistant-launch>strong{display:block;line-height:1.4}.assistant-frame{display:block;width:100%;height:570px;border:1px solid #e1e8df;border-radius:7px;background:white}.assistant-privacy{display:block;margin-top:8px;color:#879287;font-size:8px;line-height:1.4}.journey-title{padding-top:13px;border-top:1px solid #e3e9e2}@media(max-width:700px){.assistant-frame{height:620px}.steps-card{max-height:none}}
 
 .layout{grid-template-columns:minmax(310px,350px) minmax(0,1fr)}.assistant-frame{height:610px}.assistant-launch{min-width:0}.steps-card{min-width:0}@media(max-width:700px){.layout{grid-template-columns:minmax(0,1fr)}.assistant-frame{height:620px}}
+
+:root{--radius-control:12px;--radius-card:20px;--radius-large:26px}
+body{background:radial-gradient(ellipse at 85% 10%,#eaf1ea 0,transparent 36%),var(--paper)}
+main{width:min(1180px,calc(100% - 40px))}
+.sandbox-banner strong,.demo-seal,.upload-button,.primary,.secondary,.secondary-link,.field input,.field select,.input-prefix>span,.input-prefix input,.otp-box,.captcha-code,.verify-panel,.notice,.reference{border-radius:var(--radius-control)}
+.hero{border-radius:var(--radius-large)}
+.steps-card,.form-card,.assistant-launch{border-radius:var(--radius-card)}
+.assistant-frame{border-radius:14px}
+.primary,.secondary{min-height:42px;transition:transform .18s ease,box-shadow .18s ease,background-color .18s ease}
+.primary:hover,.secondary:hover{transform:translateY(-1px);box-shadow:0 5px 15px #25382c16}
+.field input:focus,.field select:focus{box-shadow:0 0 0 4px #67916b19}
+.portal-closing{opacity:0;transform:translateY(-9px) scale(.99);transition:opacity .38s ease,transform .38s ease}
+.receipt-card{transition:opacity .32s ease,transform .32s ease}
+.receipt-enter{animation:receipt-enter .42s cubic-bezier(.2,.75,.25,1) both}
+@keyframes receipt-enter{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
+@media(max-width:700px){main{width:calc(100% - 24px)}.hero{border-radius:20px}.steps-card,.form-card{border-radius:16px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+.screen:not([hidden]){animation:screen-slide .36s cubic-bezier(.2,.7,.2,1) both}
+@keyframes screen-slide{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
