@@ -20,7 +20,7 @@ if (fs.existsSync(envFile)) {
   }
 }
 const PORT = Number(process.env.PORT || 3000);
-const MIME = { '.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml' };
+const MIME = { '.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml' };
 const GROQ_API_KEY = (process.env.GROQ_API_KEY || '').trim();
 const GROQ_CHAT_MODEL = (process.env.GROQ_CHAT_MODEL || 'openai/gpt-oss-20b').trim();
 const GROQ_FALLBACK_MODEL = (process.env.GROQ_FALLBACK_MODEL || 'openai/gpt-oss-120b').trim();

@@ -18,6 +18,8 @@ Sign up with a name, email, phone, and a password of at least 10 characters. Pas
 
 Open `/mock-nsp` while the app is running to use the fictional scholarship registration sandbox. The demo OTP is `123456` and captcha is `7K2M`. It includes a simulated identity step, student and bank form, review, and fake application confirmation. It stores no data and has no connection to NSP, DigiLocker, UIDAI, or other government services. Use invented details only.
 
+The application assistant can read JPG, PNG, WebP, and PDF documents locally in the browser using Tesseract.js and PDF.js. OCR supports English and Hindi; PDF text is read directly when available, otherwise up to four pages are rendered for OCR. The first OCR run downloads the language model from jsDelivr. The document itself is not uploaded. Extracted values are suggestions and must be reviewed; this is OCR, not document authenticity verification.
+
 The browser uses built-in speech recognition when supported. Otherwise, recorded audio is transcribed through Groq using `GROQ_TRANSCRIPTION_MODEL` (default `whisper-large-v3-turbo`). Browser-provided speech recognition is separate and does not use the Groq API key.
 
 The WhatsApp version accepts text and voice notes; voice notes are transcribed through Groq and replies use Groq browser search. To enable WhatsApp, deploy behind HTTPS, configure the webhook URL as `https://YOUR_HOST/webhook/whatsapp`, subscribe to `messages`, and set the same verify token in Meta and `.env`. Set `WHATSAPP_ACCESS_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` to enable replies. Set `WHATSAPP_APP_SECRET` to verify Meta webhook signatures.
