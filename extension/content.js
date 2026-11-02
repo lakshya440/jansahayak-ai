@@ -31,11 +31,14 @@
     const blank = required.filter(field => !String(field.value || '').trim());
     const labels = [...new Set(blank.map(labelFor).filter(label => label && !stopWords.test(label)))].slice(0, 6);
     const pageText = (document.body?.innerText || '').slice(0, 30000);
+    const summary = (document.querySelector('main')?.innerText || pageText).replace(/\s+/g, ' ').trim().slice(0, 240);
     const explicitChallengeCopy = /i am not a robot|human verification|recaptcha|hcaptcha|captcha code|enter.{0,20}captcha|enter.{0,20}(?:otp|one.?time password)|one.?time password|aadhaar face|biometric verification/i.test(pageText);
     const verification = explicitChallengeCopy || fields.some(field => challengePattern.test(labelFor(field)));
-    const stage = /review|preview|confirm|summary/i.test(heading) ? 'Review your application' : /document|upload|certificate/i.test(heading) ? 'Add the requested documents' : /login|sign.?in|mobile|otp/i.test(heading) ? 'Sign in to continue' : /register|registration|application|student|personal/i.test(heading) ? 'Complete this application step' : 'Continue through this scheme page';
+    const navPattern = /apply|application|register|registration|student|scholarship|login|scheme|continue|next|proceed|portal|otr|profile|document/i;
+    const navigation = [...document.querySelectorAll('a[href],button,[role="button"]')].filter(visible).map(node => ({ node, text: textOf(node).replace(/\s+/g, ' ').slice(0, 90) })).filter(item => item.text && navPattern.test(item.text)).slice(0, 6);
+    const stage = /review|preview|confirm|summary/i.test(heading) ? 'Review your application' : /document|upload|certificate/i.test(heading) ? 'Add the requested documents' : /login|sign.?in|mobile|otp/i.test(heading) ? 'Sign in to continue' : required.length ? (/register|registration|application|student|personal/i.test(heading) ? 'Complete this application step' : 'Complete the required fields on this page') : navigation.length ? 'Choose a scheme or application section' : 'Review the page instructions';
     const buttons = [...document.querySelectorAll('button,input[type=submit],[role=button],a')].filter(visible).map(textOf).filter(text => /^(next|continue|proceed|save and continue|review|submit|verify)$/i.test(text)).slice(0, 3);
-    return { heading: heading.slice(0, 100), fields, required, blank, labels, verification, stage, buttons };
+    return { heading: heading.slice(0, 100), summary, fields, required, blank, labels, verification, stage, buttons, navigation };
   }
   function element(tag, attrs = {}, content = '') { const node = document.createElement(tag); Object.entries(attrs).forEach(([key, value]) => { if (key === 'className') node.className = value; else if (key === 'text') node.textContent = value; else node.setAttribute(key, value); }); if (content) node.textContent = content; return node; }
   function ensureWidget() {
@@ -62,17 +65,25 @@
     const data = scanPage();
     const shadow = ensureWidget(); const content = shadow.getElementById('content'); content.replaceChildren();
     content.append(element('div', { className: 'eyebrow', text: 'CURRENT STEP' }), element('h2', { className: 'title', text: data.heading }));
-    content.append(element('p', { className: 'advice', text: data.verification ? 'A human verification step may be present. Complete OTP, CAPTCHA, or identity checks yourself, then I’ll scan what comes next.' : `${data.stage}. Review the page and enter the requested information yourself. I’ll guide you again after you move to the next step.` }));
+    const advice = data.verification ? 'A human verification step may be present. Complete OTP, CAPTCHA, or identity checks yourself, then I’ll scan what comes next.' : data.required.length ? `${data.stage}. Review the page and enter the requested information yourself. I’ll guide you again after you move to the next step.` : data.navigation.length ? `I scanned this page and found ${data.navigation.length} scheme-related link${data.navigation.length === 1 ? '' : 's'}. Choose where you want to go; I’ll scan the next page.` : 'I scanned the visible page. No form fields or scheme links are visible yet; review the page and continue when ready.';
+    content.append(element('p', { className: 'advice', text: advice }));
     const stats = element('div', { className: 'stats' });
     const done = Math.max(0, data.required.length - data.blank.length);
     [[done, 'required complete'], [data.blank.length, 'required to review']].forEach(([number, caption]) => { const stat = element('div', { className: 'stat' }); stat.append(element('b', { text: String(number) }), document.createTextNode(caption)); stats.append(stat); });
     content.append(stats);
+    if (data.summary) { content.append(element('div', { className: 'section', text: 'Page overview' }), element('div', { className: 'empty', text: data.summary })); }
     if (data.verification) content.append(element('div', { className: 'alert', text: 'Human check detected: handle it on the website. Sahayak will not solve or submit it.' }));
     content.append(element('div', { className: 'section', text: 'Required fields to review' }));
     if (data.labels.length) {
       const list = element('ul', { className: 'list' });
       data.labels.forEach((label, index) => { const row = element('li', { className: 'row' }); row.append(element('span', { className: 'badge', text: '!' }), element('span', { text: label })); const focus = element('button', { type: 'button', text: 'Show' }); focus.addEventListener('click', () => { const field = data.blank.find(item => labelFor(item) === label); if (field) { field.scrollIntoView({ behavior: 'smooth', block: 'center' }); field.focus({ preventScroll: true }); } }); row.append(focus); list.append(row); }); content.append(list);
-    } else content.append(element('div', { className: 'empty', text: data.required.length ? 'All visible required fields appear complete. Review the entries, then continue when ready.' : 'No visible required fields found. Review the page instructions and continue when ready.' }));
+    } else content.append(element('div', { className: 'empty', text: data.required.length ? 'All visible required fields appear complete. Review the entries, then continue when ready.' : data.navigation.length ? 'No required form fields on this page yet. These links may lead to the scheme or application step.' : 'No visible required fields found. I checked the page heading, visible text, form fields, and navigation.' }));
+    if (data.navigation.length) {
+      content.append(element('div', { className: 'section', text: 'Scheme navigation found' }));
+      const list = element('ul', { className: 'list' });
+      data.navigation.forEach(item => { const row = element('li', { className: 'row' }); row.append(element('span', { className: 'badge', text: '↗' }), element('span', { text: item.text })); const focus = element('button', { type: 'button', text: 'Show' }); focus.addEventListener('click', () => { item.node.scrollIntoView({ behavior: 'smooth', block: 'center' }); item.node.focus({ preventScroll: true }); }); row.append(focus); list.append(row); });
+      content.append(list);
+    }
     if (data.buttons.length) content.append(element('div', { className: 'section', text: `Page action available: ${data.buttons.join(' · ')}` }));
   }
   function scheduleScan() { clearTimeout(timer); timer = setTimeout(() => { if (active) renderScan(); }, 500); }
