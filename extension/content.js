@@ -31,7 +31,7 @@
     const blank = required.filter(field => !String(field.value || '').trim());
     const labels = [...new Set(blank.map(labelFor).filter(label => label && !stopWords.test(label)))].slice(0, 6);
     const pageText = (document.body?.innerText || '').slice(0, 30000);
-    const explicitChallengeCopy = /(?:enter|type|provide|verify with).{0,35}(?:captcha|\botp\b|one.?time password)|(?:captcha|\botp\b).{0,25}(?:code|verification|enter)|aadhaar face|biometric verification|human verification/i.test(pageText);
+    const explicitChallengeCopy = /i am not a robot|human verification|recaptcha|hcaptcha|captcha code|enter.{0,20}captcha|enter.{0,20}(?:otp|one.?time password)|one.?time password|aadhaar face|biometric verification/i.test(pageText);
     const verification = explicitChallengeCopy || fields.some(field => challengePattern.test(labelFor(field)));
     const stage = /review|preview|confirm|summary/i.test(heading) ? 'Review your application' : /document|upload|certificate/i.test(heading) ? 'Add the requested documents' : /login|sign.?in|mobile|otp/i.test(heading) ? 'Sign in to continue' : /register|registration|application|student|personal/i.test(heading) ? 'Complete this application step' : 'Continue through this scheme page';
     const buttons = [...document.querySelectorAll('button,input[type=submit],[role=button],a')].filter(visible).map(textOf).filter(text => /^(next|continue|proceed|save and continue|review|submit|verify)$/i.test(text)).slice(0, 3);
