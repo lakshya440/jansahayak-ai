@@ -74,7 +74,7 @@ function renderApplicationProgress(applications=[]){
     if(status==='submitted'){completed.add('account');completed.add('portal');completed.add('form');completed.add('documents');completed.add('review');completed.add('submit');}
     const nextStep=checklist.find(([id])=>!completed.has(id))?.[0];
     for(const [id,label] of checklist){const step=document.createElement('li');step.className=`application-progress-step ${completed.has(id)?'done':id===nextStep?'current':''}`;
-      if(status!=='submitted'&&status!=='withdrawn'){
+      if(status!=='withdrawn'){
         const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.className='application-step-check';checkbox.checked=completed.has(id);checkbox.disabled=id!==nextStep&&!completed.has(id);checkbox.setAttribute('aria-label',`Mark as done: ${label}`);checkbox.addEventListener('change',()=>updateApplicationSteps(item,id,checkbox.checked));
         const text=document.createElement('span');text.textContent=label;step.append(checkbox,text);
       } else step.textContent=label;
