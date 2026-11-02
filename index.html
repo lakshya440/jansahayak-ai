@@ -23,7 +23,7 @@
       <button class="side-item" id="profileOpen"><span class="side-icon">◉</span> <span data-i18n="myAccountApplications">My account &amp; applications</span></button>
       <button class="side-item" id="automationOpen"><span class="side-icon">▣</span> <span>Scholarship demo</span><span class="demo-tag">DEMO</span></button>
       <a class="side-item mock-nsp-link" href="/mock-nsp"><span class="side-icon">↗</span> <span>Open mock NSP site</span><span class="demo-tag">SANDBOX</span></a>
-      <a class="side-item mock-nsp-link" href="/mock-eshram"><span class="side-icon">↗</span> <span>Open mock eShram portal</span><span class="demo-tag">SANDBOX</span></a>
+      <a class="side-item mock-nsp-link" id="mockEshramLink" href="/mock-eshram/index.html?runDemo=1"><span class="side-icon">↗</span> <span>Run mock eShram demo</span><span class="demo-tag">SANDBOX</span></a>
       <div class="sidebar-label progress-label" data-i18n="applicationProgress">APPLICATION PROGRESS</div>
       <div class="application-progress-list" id="applicationProgressList" aria-label="Your application progress"><div class="history-empty">Log in to track your applications.</div></div>
       <div class="sidebar-label history-label" data-i18n="recentChats">RECENT CHATS</div>
@@ -133,6 +133,15 @@
       <section class="demo-screen" data-screen="2" hidden><h3>Confirm one field at a time</h3><p class="demo-help">Review and correct the fields extracted by browser OCR. No document authenticity check is performed.</p><div id="demoReview" class="demo-review"></div><div id="demoChecks" class="demo-checks" role="status"></div><button class="save-profile demo-next" type="button">Run checks →</button></section>
       <section class="demo-screen" data-screen="3" hidden><div class="ready-icon">✓</div><h3>Ready for your mock NSP practice</h3><p>Open the separate sandbox to see the matching login, captcha, face-check placeholder, form, and demo submission confirmation.</p><div class="application-id">DEMO APPLICATION ID <strong>NSP-DEMO-0001</strong></div><div class="demo-summary" id="demoSummary"></div><div class="copy-assist"><h4>Copy assist</h4><p>Copy a reviewed value into the corresponding field on the mock NSP page. Nothing is sent to the real NSP.</p><div id="copyAssistFields"></div><a class="save-profile mock-nsp-button" href="/mock-nsp" target="_blank" rel="noopener">Open mock NSP sandbox ↗</a></div><button class="save-profile" type="button" id="restartDemo">Start another demo ↻</button></section>
       <div class="demo-footer"><span>● Simulated · browser-only · no government connection</span><button type="button" id="demoBack" hidden>← Back</button></div>
+    </form>
+  </dialog>
+  <dialog id="eshramAutomationDialog" class="profile-dialog automation-dialog">
+    <form method="dialog" id="eshramAutomationForm">
+      <div class="dialog-header"><div><div class="dialog-eyebrow">MOCK ESHRAM SANDBOX · FAKE DATA ONLY</div><h2>Worker registration, assisted</h2></div><button type="button" class="close-dialog" id="closeEshramAutomation" aria-label="Close">×</button></div>
+      <p class="dialog-copy">Run a browser-only walkthrough using a fictional worker profile. The demo OTP and captcha are simulated; nothing is sent to eShram or a government service.</p>
+      <div class="demo-steps" aria-label="Registration steps"><span class="active">1 · Mobile</span><span>2 · OTP</span><span>3 · Details</span><span>4 · Review</span></div>
+      <section class="demo-screen"><h3>Fictional worker profile</h3><p>Sample: Meera Kumari · Patna, Bihar · Tailor. No Aadhaar or real bank details are used.</p><div class="apply-run-progress" id="eshramRunProgress" hidden aria-live="polite"><span class="run-dots"><i></i><i></i><i></i></span><span id="eshramRunStatus">Preparing the mock eShram portal…</span></div><button type="button" class="save-profile" id="openMockEshram">Run eShram demo ↗</button></section>
+      <div class="demo-footer"><span>● Fictional data · simulated · no government connection</span></div>
     </form>
   </dialog>
   <dialog id="applyAssistantDialog" class="profile-dialog automation-dialog">
