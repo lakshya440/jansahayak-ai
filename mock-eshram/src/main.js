@@ -22,7 +22,7 @@ function wirePracticeRegistration(){
 }
 function announceEshram(type,status,reference){const pageStatus=document.querySelector('#eshramDemoStatus');if(pageStatus)pageStatus.textContent=status;eshramChannel?.postMessage({type,status,reference})}
 function waitForDemo(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
-const eshramDemoPauses={mobile:1500,otp:1800,details:2600};
+const eshramDemoPauses={mobile:3000,otp:3000,details:5000};
 const defaultEshramDemo={mobile:'9211546800',otp:'123456',captcha:'7K2M',epfo:'No',esic:'No',name:'Meera Kumari',dob:'1994-06-18',gender:'Female',state:'Bihar',district:'Patna',occupation:'Tailor',education:'Secondary'};
 async function runEshramAutomation(values={}){
   if(eshramAutomationRunning)return;
