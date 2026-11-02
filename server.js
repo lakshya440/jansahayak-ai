@@ -352,7 +352,8 @@ async function sendTelegram(chatId,text){
   const chunks=String(text||'').match(/[\s\S]{1,4000}/g)||['Sorry, I could not prepare a response.'];
   for(const chunk of chunks){
     const response=await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chatId,text:chunk})});
-    if(!response.ok)console.error('[Telegram] sendMessage failed:',response.status,(await response.text()).slice(0,500));
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok||!result.ok)console.error('[Telegram] sendMessage failed:',response.status,result.description||'Unknown Telegram API error');
   }
 }
 async function handleTelegram(raw){
@@ -361,13 +362,21 @@ async function handleTelegram(raw){
   const chatId=message?.chat?.id;
   const text=String(message?.text||message?.caption||'').trim();
   if(!chatId||!text)return;
+  console.info(`[Telegram] Received message update ${update.update_id} (${text.length} characters).`);
+  if(/^\/(start|help)(?:@\w+)?(?:\s|$)/i.test(text)){
+    await sendTelegram(chatId,'नमस्ते! मैं Jan Sahayak हूँ। सरकारी योजनाओं के बारे में हिंदी या English में पूछें।\n\nHi! I’m Jan Sahayak. Ask me about government schemes in Hindi or English.');
+    console.info(`[Telegram] Sent welcome response for update ${update.update_id}.`);
+    return;
+  }
   const sender=`telegram:${chatId}`;
   try{
     const history=pool?await db('recent_messages',{phone:sender}):[];
+    await fetch(`https://api.telegram.org/bot${telegramToken}/sendChatAction`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chatId,action:'typing'})}).catch(()=>{});
     const result=await reply(text,pool?sender:null,history,'','Telegram');
     const sources=result.sources?.length?'\n\nSources:\n'+result.sources.map((source,i)=>`${i+1}. ${source.title}: ${source.url}`).join('\n'):'';
     await sendTelegram(chatId,result.answer+sources);
-  }catch(error){console.error('[Telegram] Message processing failed:',error.message);await sendTelegram(chatId,'Sorry, something went wrong. Please try again shortly.');}
+    console.info(`[Telegram] Replied to update ${update.update_id}.`);
+  }catch(error){console.error('[Telegram] Message processing failed:',error.status||'',error.message);await sendTelegram(chatId,'The AI service is temporarily unavailable. Please try again shortly.');}
 }
 async function configureTelegramWebhook(){
   if(!telegramToken)return;
