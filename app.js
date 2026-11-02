@@ -1,6 +1,9 @@
 const $ = s => document.querySelector(s);
 const messages = $('#messages'), welcome = $('#welcome'), input = $('#messageInput'), sendBtn = $('#sendBtn'), dialog = $('#profileDialog'), form = $('#profileForm'), applicationDialog=$('#applicationDialog'),draftForm=$('#draftForm');
 const authDialog=$('#authDialog'),authForm=$('#authForm');
+const shouldOpenApplyAssistant=new URLSearchParams(location.search).get('assistant')==='1';
+const embeddedAssistant=new URLSearchParams(location.search).get('embedded')==='1';
+if(embeddedAssistant)document.body.classList.add('assistant-embed');
 let busy=false, recorder=null, recognizer=null, voiceStream=null, chunks=[], recording=false, speechText='',voiceCancelled=false,voiceSession=0;
 const voiceInline=$('#voiceInline');
 const voiceOrb=$('#voiceOrb');
@@ -91,7 +94,7 @@ $('#closeApplyAssistant').addEventListener('click',()=>{activeApplyAssistant=fal
 applyAssistantDialog.addEventListener('click',event=>{if(event.target===applyAssistantDialog){activeApplyAssistant=false;applyAssistantDialog.close();}});
 $('#skipApplyDocument').addEventListener('click',startMissingQuestions);$('#applyDocContinue').addEventListener('click',startMissingQuestions);
 $('#applyAnswerNext').addEventListener('click',()=>handleApplyAnswer($('#applyAnswer').value));
-$('#openMockApply').addEventListener('click',()=>{broadcastApplyValues();window.open('/mock-nsp?assist=1','jan-sahayak-mock-nsp');applyAssistantDialog.close();});
+$('#openMockApply').addEventListener('click',()=>{broadcastApplyValues();if(embeddedAssistant){$('#applyFinishCopy').textContent='Your reviewed values were sent to the mock form. Complete login and captcha on the right; the fields will already be filled.';$('#openMockApply').textContent='Details sent to mock form ✓';$('#openMockApply').disabled=true;return;}let returnedToSandbox=false;try{returnedToSandbox=Boolean(window.opener&&window.opener.location.origin===location.origin);if(returnedToSandbox)window.opener.focus();}catch{}if(returnedToSandbox)window.close();else window.open('/mock-nsp?assist=1','jan-sahayak-mock-nsp');applyAssistantDialog.close();});
 $('#applyDocument').addEventListener('change',async event=>{const file=event.target.files?.[0];if(!file)return;const status=$('#applyDocStatus');status.textContent=`Reading ${file.name} locally…`;let progress='';try{const text=await readUploadedDocument(file,value=>{progress=value;status.textContent=value;}),extracted=parseOcrFields(text);applyValues={...applyValues,...extracted};buildOcrReview($('#applyFields'),applyValues,(key,value)=>applyValues[key]=value);status.textContent=`OCR read ${text.trim().split(/\s+/).filter(Boolean).length} words from ${file.name}. ${progress} Suggested fields are unverified—review and correct them.`;}catch(error){status.textContent=error.message||'OCR could not read this file. You can answer the questions manually.';}});
 function renderApplyFieldReview(){const container=$('#applyFields');container.replaceChildren();const labels={name:'Full name',dob:'Date of birth',category:'Category',income:'Annual income',marks:'Class 12 marks',accountName:'Account holder',ifsc:'IFSC',account:'Demo account number'};for(const [key,label] of Object.entries(labels)){const row=document.createElement('label');row.className='demo-review-row';const title=document.createElement('span');title.textContent=label;const field=document.createElement('input');field.value=applyValues[key]||'';field.setAttribute('aria-label',label);field.addEventListener('input',()=>applyValues[key]=field.value);row.append(title,field);container.append(row);}}
 $('#applyAnswer').addEventListener('input',()=>{if($('#applyAnswer').type==='date')return;});
@@ -150,7 +153,7 @@ async function openProfile(){
 function setAuthMode(mode){authMode=mode;const signup=mode==='signup';$('#authTitle').textContent=signup?t('profileTitle'):t('welcomeBack');$('#authCopy').textContent=signup?t('profileSignup'):t('profileLogin');$('#authSubmit').innerHTML=signup?`${t('signup')} <span>→</span>`:`${t('login')} <span>→</span>`;for(const el of document.querySelectorAll('.auth-signup')){el.hidden=!signup;const field=el.querySelector('input');if(field)field.required=signup;}const password=authForm.elements.password;password.autocomplete=signup?'new-password':'current-password';password.minLength=signup?10:0;document.querySelectorAll('.auth-tab').forEach(tab=>tab.classList.toggle('active',tab.dataset.authMode===mode));$('#authError').textContent='';}
 document.querySelectorAll('.auth-tab').forEach(tab=>tab.addEventListener('click',()=>setAuthMode(tab.dataset.authMode)));
 $('#closeAuth').addEventListener('click',()=>{authDialog.close();afterAuth=null;});
-$('#continueGuest').addEventListener('click',()=>{afterAuth=null;authDialog.close();});
+$('#continueGuest').addEventListener('click',()=>{afterAuth=null;authDialog.close();if(shouldOpenApplyAssistant)startApplyAssistant();});
 $('#logoutBtn').addEventListener('click',()=>{authToken='';currentUser=null;conversationList=[];currentConversationId=null;chatHistory=[];messages.replaceChildren();welcome.hidden=false;sessionStorage.removeItem('janSahayakToken');sessionStorage.removeItem('janSahayakProfile');updateAccount(null);renderConversations();renderApplicationProgress();requestAuth();});
 authForm.addEventListener('submit',async e=>{
   e.preventDefault();$('#authError').textContent='';const values=Object.fromEntries(new FormData(authForm).entries());values.consent=authForm.elements.consent.checked;
@@ -160,8 +163,8 @@ authForm.addEventListener('submit',async e=>{
 setAuthMode('signup');
 $('#language').addEventListener('change',()=>applyWebsiteLanguage($('#language').value));
 applyWebsiteLanguage(uiLanguage);
-if(authToken){fetch('/api/auth/me',{headers:apiHeaders(false)}).then(async r=>{const data=await r.json();if(!r.ok)throw new Error();sessionStorage.setItem('janSahayakProfile',JSON.stringify(data.user));updateAccount(data.user);await Promise.all([loadConversations(true),loadApplications()]);}).catch(()=>{authToken='';sessionStorage.removeItem('janSahayakToken');updateAccount(null);renderConversations();renderApplicationProgress();});}
-else{updateAccount(null);renderConversations();renderApplicationProgress();setTimeout(()=>requestAuth(),0);}
+if(authToken){fetch('/api/auth/me',{headers:apiHeaders(false)}).then(async r=>{const data=await r.json();if(!r.ok)throw new Error();sessionStorage.setItem('janSahayakProfile',JSON.stringify(data.user));updateAccount(data.user);await Promise.all([loadConversations(true),loadApplications()]);if(shouldOpenApplyAssistant)startApplyAssistant();}).catch(()=>{authToken='';sessionStorage.removeItem('janSahayakToken');updateAccount(null);renderConversations();renderApplicationProgress();if(embeddedAssistant)startApplyAssistant();else if(shouldOpenApplyAssistant)requestAuth(()=>startApplyAssistant());});}
+else{updateAccount(null);renderConversations();renderApplicationProgress();if(embeddedAssistant)startApplyAssistant();else setTimeout(()=>requestAuth(()=>shouldOpenApplyAssistant&&startApplyAssistant()),0);}
 $('#closeProfile').addEventListener('click',()=>dialog.close());
 dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
 form.addEventListener('submit',async e=>{
