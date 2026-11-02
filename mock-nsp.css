@@ -28,3 +28,6 @@ html.automation-child .layout{grid-template-columns:minmax(0,1fr)}
 html.automation-child .steps-card{display:none}
 html.automation-child .form-card{width:100%;max-width:900px;margin-inline:auto;min-height:560px;padding:clamp(24px,5vw,52px);border-radius:24px}
 html.automation-child main{width:min(1040px,calc(100% - 36px))}
+html:not(.automation-child) .layout{grid-template-columns:minmax(0,800px);justify-content:center}
+html:not(.automation-child) .layout>.form-card{display:none}
+html:not(.automation-child) .steps-card{position:static}
