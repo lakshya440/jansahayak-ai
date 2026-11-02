@@ -26,7 +26,7 @@ function addMessage(role,text,typing=false){
 }
 function addApplicationCTA(container,schemeId=null){
   if(container.querySelector('.application-cta'))return;
-  const start=document.createElement('button');start.type='button';start.className='save-profile application-cta';start.textContent='Create demo application draft →';
+  const start=document.createElement('button');start.type='button';start.className='save-profile application-cta';start.textContent='Start an application plan →';
   start.addEventListener('click',()=>openApplication(schemeId));container.append(document.createElement('br'),start);
 }
 async function send(text){
@@ -69,8 +69,17 @@ function renderApplicationProgress(applications=[]){
     const title=document.createElement('strong');title.className='application-progress-title';title.textContent=item.scheme_name||'Scheme application';title.title=title.textContent;
     const badge=document.createElement('span');badge.className='application-status-badge';badge.textContent=status==='submitted'?'Submitted':status==='withdrawn'?'Withdrawn':'Draft';header.append(title,badge);card.append(header);
     const steps=document.createElement('ol');steps.className='application-progress-steps';
-    const stages=status==='submitted'?[['Draft saved','done'],['Marked submitted by you','done'],['Check for updates on official portal','current']]:status==='withdrawn'?[['Draft saved','done'],['Withdrawn by you','current']]:[['Draft saved','done'],['Submit on official portal','current']];
-    for(const [label,state] of stages){const step=document.createElement('li');step.className=`application-progress-step ${state}`;step.textContent=label;steps.append(step);}card.append(steps);
+    const checklist=[['account','Create or sign in on the official portal'],['portal','Open this scheme and check eligibility'],['form','Complete the application form'],['documents','Upload required documents on the portal'],['review','Review all details'],['submit','Submit the application'],['followup','Save the reference number and track status']];
+    const completed=new Set(Array.isArray(item.details?.completed_steps)?item.details.completed_steps:[]);
+    if(status==='submitted'){completed.add('account');completed.add('portal');completed.add('form');completed.add('documents');completed.add('review');completed.add('submit');}
+    const nextStep=checklist.find(([id])=>!completed.has(id))?.[0];
+    for(const [id,label] of checklist){const step=document.createElement('li');step.className=`application-progress-step ${completed.has(id)?'done':id===nextStep?'current':''}`;
+      if(status!=='submitted'&&status!=='withdrawn'){
+        const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.className='application-step-check';checkbox.checked=completed.has(id);checkbox.disabled=id!==nextStep&&!completed.has(id);checkbox.setAttribute('aria-label',`Mark as done: ${label}`);checkbox.addEventListener('change',()=>updateApplicationSteps(item,id,checkbox.checked));
+        const text=document.createElement('span');text.textContent=label;step.append(checkbox,text);
+      } else step.textContent=label;
+      steps.append(step);
+    }card.append(steps);
     const actions=document.createElement('div');actions.className='application-progress-actions';
     const official=String(item.official_website||'');
     try{const parsed=new URL(/^https?:\/\//i.test(official)?official:`https://${official}`);if(parsed.protocol==='https:'&&/(^|\.)(gov\.in|nic\.in)$/.test(parsed.hostname)){const link=document.createElement('a');link.className='progress-portal-link';link.href=parsed.href;link.target='_blank';link.rel='noopener';link.textContent=status==='submitted'?'Check portal ↗':'Open scheme portal ↗';actions.append(link);}}catch{}
@@ -146,6 +155,11 @@ async function updateApplicationStatus(item){
   if(!confirm('Only mark this submitted after you have completed the application on the official scheme website.'))return;
   try{const response=await fetch(`/api/applications/${item.id}`,{method:'PATCH',headers:apiHeaders(),body:JSON.stringify({status:'submitted'})}),result=await response.json();if(!response.ok)throw new Error(result.error||'Could not update status.');await loadApplications();}
   catch(error){const list=$('#applicationProgressList'),notice=document.createElement('p');notice.className='application-progress-error';notice.textContent=error.message||'Could not update status.';list.prepend(notice);}
+}
+async function updateApplicationSteps(item,stepId,checked){
+  const completed=new Set(Array.isArray(item.details?.completed_steps)?item.details.completed_steps:[]);if(checked)completed.add(stepId);else completed.delete(stepId);
+  try{const response=await fetch(`/api/applications/${item.id}`,{method:'PATCH',headers:apiHeaders(),body:JSON.stringify({completedSteps:[...completed]})}),result=await response.json();if(!response.ok)throw new Error(result.error||'Could not save this step.');await loadApplications();}
+  catch(error){const list=$('#applicationProgressList'),notice=document.createElement('p');notice.className='application-progress-error';notice.textContent=error.message||'Could not save this step.';list.prepend(notice);await loadApplications();}
 }
 async function loadApplications(){
   const list=$('#applicationsList');if(!authToken){list.textContent='Log in to view saved drafts.';renderApplicationProgress();return;}

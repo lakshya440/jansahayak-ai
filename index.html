@@ -105,8 +105,8 @@
   </dialog>
   <dialog id="applicationDialog" class="profile-dialog application-dialog">
     <form id="draftForm">
-      <div class="dialog-header"><div><div class="dialog-eyebrow">APPLICATION ASSISTANT · DEMO</div><h2>Prepare an application draft</h2></div><button type="button" class="close-dialog" id="closeApplication" aria-label="Close">×</button></div>
-      <p class="dialog-copy">Enter the scheme name and add details for its draft. Copy the scheme name and official link from the chat sources. Saved profile details are filled in automatically. This draft is not submitted to a government site.</p>
+      <div class="dialog-header"><div><div class="dialog-eyebrow">APPLICATION ASSISTANT · YOUR PLAN</div><h2>Start an application plan</h2></div><button type="button" class="close-dialog" id="closeApplication" aria-label="Close">×</button></div>
+      <p class="dialog-copy">Save the scheme and your basic details here. We’ll show the steps in your dashboard so you can work through them at the official government portal. Nothing is submitted automatically.</p>
       <label class="field-label">Scheme name<input name="scheme_name" id="draftScheme" placeholder="Enter the scheme name from the cited official source" required /></label>
       <label class="field-label">Official government website <span>Optional · HTTPS .gov.in or .nic.in</span><input name="official_website" placeholder="https://example.gov.in" /></label>
       <div class="form-row"><label class="field-label">Full name<input name="name" autocomplete="name" required /></label><label class="field-label">Mobile number<input name="phone" type="tel" autocomplete="tel" placeholder="Optional" /></label></div>
@@ -117,7 +117,7 @@
       <label class="field-label">School / institution<input name="institution" placeholder="Optional" /></label>
       <div class="data-note"><span>♧</span> Never enter Aadhaar numbers, bank details, passwords or OTPs here. If the official portal needs documents, upload them only on that official site.</div>
       <div class="dialog-actions"><button type="button" class="delete-profile" id="clearDraft">Clear draft</button><button type="submit" class="save-profile">Prepare my draft <span>→</span></button></div>
-      <section id="draftPreview" class="draft-preview" hidden><h3>Draft ready for your review</h3><p>This is a local preview. Check every detail, then continue on the scheme’s official site to complete and submit the real application.</p><pre id="draftPreviewText"></pre><button id="saveApplication" type="button" class="save-profile">Save draft to my account</button> <a id="officialApplyLink" class="save-profile official-link" href="#" target="_blank" rel="noopener">Open official scheme site ↗</a><div id="draftSaveStatus" class="form-error" role="status"></div></section>
+      <section id="draftPreview" class="draft-preview" hidden><h3>Application plan ready</h3><p>Review your details, save this plan, then follow the checklist in your dashboard. Complete and submit the real form only on the official government portal.</p><pre id="draftPreviewText"></pre><button id="saveApplication" type="button" class="save-profile">Save plan to my dashboard</button> <a id="officialApplyLink" class="save-profile official-link" href="#" target="_blank" rel="noopener">Open official scheme site ↗</a><div id="draftSaveStatus" class="form-error" role="status"></div></section>
     </form>
   </dialog>
   <script src="/app.js" type="module"></script>
