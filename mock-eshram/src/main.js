@@ -11,7 +11,7 @@ function wirePracticeRegistration(){
   const card=document.querySelector('.reg-card'),form=card?.querySelector('form');if(!form)return;
   const mobile=form.querySelector('input[type="tel"]'),captchaInput=form.querySelector('.captcha input'),send=form.querySelector('button.full');
   send.disabled=false;form.querySelectorAll('input[type="radio"]').forEach((input,index)=>{if(index===0||input.name!==form.querySelectorAll('input[type="radio"]')[index-1]?.name)input.required=true});
-  const status=document.createElement('p');status.className='required';status.setAttribute('role','status');status.setAttribute('aria-live','polite');form.append(status);
+  const status=document.createElement('p');status.id='eshramDemoStatus';status.className='required';status.setAttribute('role','status');status.setAttribute('aria-live','polite');form.append(status);
   const otpPanel=document.createElement('section');otpPanel.className='formpanel';otpPanel.hidden=true;otpPanel.innerHTML='<h2>Demo OTP check</h2><p class="required">Use the fictional OTP <strong>123456</strong>. No SMS is sent.</p><label class="field"><span>One-time password<b>*</b></span><input id="demoOtp" inputmode="numeric" maxlength="6" placeholder="Enter 123456" required></label><button type="button" class="btn green" id="verifyDemoOtp">Verify demo OTP</button><p id="otpStatus" class="required" role="status" aria-live="polite"></p>';
   const detailPanel=document.createElement('section');detailPanel.className='formpanel';detailPanel.hidden=true;detailPanel.innerHTML='<h2>Worker details</h2><p class="required">Use fictional details only. These stay on this page until you refresh.</p><form id="workerDetails"><label class="field"><span>Full name<b>*</b></span><input name="name" placeholder="Demo worker" required></label><label class="field"><span>Date of birth<b>*</b></span><input name="dob" type="date" required></label><label class="field"><span>Gender<b>*</b></span><select name="gender" required><option value="">Choose</option><option>Female</option><option>Male</option><option>Other</option></select></label><label class="field"><span>State<b>*</b></span><input name="state" placeholder="State" required></label><label class="field"><span>District<b>*</b></span><input name="district" placeholder="District" required></label><label class="field"><span>Occupation<b>*</b></span><input name="occupation" placeholder="Occupation" required></label><label class="field"><span>Education level<b>*</b></span><select name="education" required><option value="">Choose</option><option>Up to primary</option><option>Secondary</option><option>Higher secondary</option><option>Graduate or above</option></select></label><button class="btn green" type="submit">Review demo details</button></form>';
   const receipt=document.createElement('section');receipt.className='formpanel';receipt.hidden=true;
@@ -20,10 +20,46 @@ function wirePracticeRegistration(){
   otpPanel.querySelector('#verifyDemoOtp').addEventListener('click',()=>{const otp=otpPanel.querySelector('#demoOtp');if(otp.value!=='123456'){otpPanel.querySelector('#otpStatus').textContent='That demo code does not match. Use 123456.';otp.focus();return}form.hidden=true;otpPanel.hidden=true;detailPanel.hidden=false;detailPanel.scrollIntoView({behavior:'smooth',block:'center'})});
   detailPanel.querySelector('#workerDetails').addEventListener('submit',event=>{event.preventDefault();const values=Object.fromEntries(new FormData(event.currentTarget));detailPanel.hidden=true;receipt.hidden=false;receipt.innerHTML='<h2>Practice registration reviewed</h2><p class="required">This is a fictional practice record. Nothing was sent or submitted to eShram.</p>';const list=document.createElement('dl');Object.entries(values).forEach(([key,value])=>{const row=document.createElement('div'),term=document.createElement('dt'),description=document.createElement('dd');term.textContent=key[0].toUpperCase()+key.slice(1);description.textContent=value;row.append(term,description);list.append(row)});receipt.append(list);receipt.scrollIntoView({behavior:'smooth',block:'center'})});
 }
-function announceEshram(type,status,reference){eshramChannel?.postMessage({type,status,reference})}
+function announceEshram(type,status,reference){const pageStatus=document.querySelector('#eshramDemoStatus');if(pageStatus)pageStatus.textContent=status;eshramChannel?.postMessage({type,status,reference})}
 function waitForDemo(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
-async function runEshramAutomation(values){if(eshramAutomationRunning)return;eshramAutomationRunning=true;try{const form=document.querySelector('.reg-card form'),mobile=form.querySelector('input[type="tel"]'),captchaInput=form.querySelector('.captcha input'),radios=form.querySelectorAll('input[type="radio"]'),send=form.querySelector('button.full'),otp=document.querySelector('#demoOtp');announceEshram('eshram-automation-status','Filling fictional mobile number and membership answers.');mobile.value=values.mobile;captchaInput.value='7K2M';radios[1].checked=true;radios[3].checked=true;await waitForDemo(700);send.click();if(document.querySelector('.formpanel #demoOtp')?.closest('.formpanel').hidden)throw new Error('Could not start the mock registration.');announceEshram('eshram-automation-status','Verifying simulated OTP · 123456.');await waitForDemo(650);otp.value='123456';document.querySelector('#verifyDemoOtp').click();const detail=document.querySelector('#workerDetails');if(!detail||detail.closest('.formpanel').hidden)throw new Error('Could not open the worker details form.');announceEshram('eshram-automation-status','Entering fictional worker profile details.');for(const [key,value]of Object.entries(values)){const input=detail.elements.namedItem(key);if(input)input.value=String(value)}await waitForDemo(700);announceEshram('eshram-automation-status','Reviewing the practice registration.');detail.requestSubmit();const receipt=document.querySelector('.reg-card .formpanel:not([hidden])');if(!receipt)throw new Error('Could not create the practice review.');const reference=`ESHRAM-DEMO-${Date.now().toString(36).toUpperCase().slice(-6)}`,ref=document.createElement('p');ref.className='required';ref.textContent=`Practice reference: ${reference} · fictional record`;receipt.append(ref);announceEshram('eshram-application-complete','Practice registration complete',reference)}catch(error){announceEshram('eshram-automation-paused',`Demo paused: ${error.message||'continue in the mock form manually.'}`);eshramAutomationRunning=false}}
+const defaultEshramDemo={mobile:'9211546800',otp:'123456',captcha:'7K2M',epfo:'No',esic:'No',name:'Meera Kumari',dob:'1994-06-18',gender:'Female',state:'Bihar',district:'Patna',occupation:'Tailor',education:'Secondary'};
+async function runEshramAutomation(values={}){
+  if(eshramAutomationRunning)return;
+  eshramAutomationRunning=true;
+  try{
+    const profile={...defaultEshramDemo,...values},form=document.querySelector('.reg-card form');
+    if(!form)throw new Error('The mock registration form is not ready yet.');
+    const mobile=form.querySelector('input[type="tel"]'),captchaInput=form.querySelector('.captcha input'),radios=form.querySelectorAll('input[type="radio"]'),send=form.querySelector('button.full');
+    if(!mobile||!captchaInput||radios.length<4||!send)throw new Error('The mock registration fields could not be found.');
+    announceEshram('eshram-automation-status','Filling the fictional mobile number and membership answers.');
+    mobile.value=profile.mobile;captchaInput.value=profile.captcha;
+    radios[profile.epfo==='Yes'?0:1].checked=true;radios[profile.esic==='Yes'?2:3].checked=true;
+    mobile.dispatchEvent(new Event('input',{bubbles:true}));captchaInput.dispatchEvent(new Event('input',{bubbles:true}));
+    await waitForDemo(400);send.click();
+    const otpPanel=document.querySelector('#demoOtp')?.closest('.formpanel');
+    if(!otpPanel||otpPanel.hidden)throw new Error('Could not start the mock registration.');
+    announceEshram('eshram-automation-status','Entering the demo OTP · 123456.');
+    const otp=document.querySelector('#demoOtp'),verify=document.querySelector('#verifyDemoOtp');
+    otp.value=profile.otp;otp.dispatchEvent(new Event('input',{bubbles:true}));await waitForDemo(350);verify.click();
+    const detail=document.querySelector('#workerDetails');
+    if(!detail||detail.closest('.formpanel').hidden)throw new Error('Could not open the worker details form.');
+    announceEshram('eshram-automation-status','Filling the fictional worker details.');
+    for(const key of ['name','dob','gender','state','district','occupation','education']){
+      const field=detail.elements.namedItem(key);
+      if(!field)throw new Error(`The ${key} field is missing from the worker form.`);
+      field.value=profile[key];field.dispatchEvent(new Event('input',{bubbles:true}));field.dispatchEvent(new Event('change',{bubbles:true}));
+    }
+    if(!detail.checkValidity())throw new Error('A worker detail is missing or invalid.');
+    announceEshram('eshram-automation-status','Worker details filled · reviewing the practice registration.');
+    await waitForDemo(900);detail.requestSubmit();
+    const card=document.querySelector('.reg-card'),receipt=[...card.querySelectorAll(':scope > .formpanel')].find(panel=>!panel.hidden);
+    if(!receipt||!receipt.querySelector('h2')?.textContent.includes('Practice registration reviewed'))throw new Error('Could not create the practice review.');
+    const reference=`ESHRAM-DEMO-${Date.now().toString(36).toUpperCase().slice(-6)}`,ref=document.createElement('p');
+    ref.className='required';ref.textContent=`Practice reference: ${reference} · fictional record`;receipt.append(ref);
+    announceEshram('eshram-application-complete','Practice registration complete',reference);
+  }catch(error){announceEshram('eshram-automation-paused',`Demo paused: ${error.message||'continue in the mock form manually.'}`);eshramAutomationRunning=false;}
+}
 function receiveEshramValues(payload){if(payload?.type!=='eshram-demo-values'||Date.now()-Number(payload.sentAt)>10*60*1000)return;try{sessionStorage.removeItem('janSahayakMockEshram')}catch{}const values=payload.values||{};if(new URL(location.href).searchParams.get('runDemo')==='1')runEshramAutomation(values)}
 if(eshramChannel)eshramChannel.addEventListener('message',event=>receiveEshramValues(event.data));
 function setFont(step){font=step===0?16:Math.min(20,Math.max(14,font+step));render()}function changeSlide(n){slide=(slide+n+9)%9;document.querySelector('.stakeholder-list').style.transform=`translateX(${slide%3?-5:0}px)`}window.addEventListener('hashchange',render);render();
-try{const handoff=JSON.parse(sessionStorage.getItem('janSahayakMockEshram')||'null');if(new URL(location.href).searchParams.get('runDemo')==='1')receiveEshramValues(handoff||{type:'eshram-demo-values',sentAt:Date.now(),values:{mobile:'9876543210',otp:'123456',captcha:'7K2M',epfo:'No',esic:'No',name:'Meera Kumari',dob:'1994-06-18',gender:'Female',state:'Bihar',district:'Patna',occupation:'Tailor',education:'Secondary'}})}catch{}
+try{const handoff=JSON.parse(sessionStorage.getItem('janSahayakMockEshram')||'null'),fresh=handoff&&Date.now()-Number(handoff.sentAt)<=10*60*1000;if(new URL(location.href).searchParams.get('runDemo')==='1')receiveEshramValues(fresh?handoff:{type:'eshram-demo-values',sentAt:Date.now(),values:defaultEshramDemo})}catch{}
