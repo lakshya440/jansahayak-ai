@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sahayak AI</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <main>
+    <header class="brand"><img src="icons/icon48.png" alt="" /><div><strong>Sahayak AI</strong><small>GOVERNMENT FORM HELPER</small></div><span class="live-dot" aria-hidden="true"></span></header>
+    <section id="pageStatus" class="page-status">Checking this page…</section>
+    <button id="scanButton" class="secondary scan-button" type="button">Scan this page now</button>
+    <section class="connect-card">
+      <div class="section-title">Connect your Jan Sahayak profile</div>
+      <p>In Jan Sahayak, open <b>My account → Sahayak browser helper</b> and create a one-time code.</p>
+      <label>Jan Sahayak address<input id="apiOrigin" type="url" placeholder="https://your-site.example" autocomplete="url" /></label>
+      <label>One-time code<input id="pairCode" inputmode="numeric" maxlength="9" placeholder="9 digit code" autocomplete="one-time-code" /></label>
+      <button id="connectButton" class="primary">Connect profile</button>
+      <div id="connectStatus" class="status" role="status"></div>
+      <button id="disconnectButton" class="text-button" hidden>Disconnect profile</button>
+    </section>
+    <details class="details-card">
+      <summary>Extra fields stored on this device</summary>
+      <p>These optional details are saved only in this browser extension, not in the Jan Sahayak database.</p>
+      <div class="fields">
+        <label>Date of birth<input data-profile="dob" type="date" /></label>
+        <label>Annual family income<input data-profile="annual_income" type="number" min="0" /></label>
+        <label>Class 12 marks (%)<input data-profile="marks" type="number" min="0" max="100" step="0.1" /></label>
+        <label>Course / class<input data-profile="course" type="text" /></label>
+        <label>School / institution<input data-profile="institution" type="text" /></label>
+        <label>Account holder<input data-profile="account_holder" type="text" /></label>
+        <label>IFSC<input data-profile="ifsc" type="text" maxlength="11" /></label>
+        <label>Bank account number<input data-profile="account_number" type="text" inputmode="numeric" /></label>
+      </div>
+      <label class="consent"><input id="allowBankDetails" type="checkbox" /> Allow bank fields to be filled on supported government sites</label>
+      <button id="saveLocalButton" class="secondary">Save local details</button>
+      <div id="localStatus" class="status" role="status"></div>
+    </details>
+    <footer>Fills blank recognized fields only. You handle OTP/CAPTCHA, check every value, and choose when to continue or submit.</footer>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

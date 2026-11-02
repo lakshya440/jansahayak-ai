@@ -40,3 +40,12 @@
 .assistant-embed .apply-upload{border-radius:12px;padding:12px 14px}
 .assistant-embed .close-dialog{border-radius:10px;width:34px;height:34px}
 @media(prefers-reduced-motion:reduce){.run-dots i{animation:none;opacity:.7}}
+.extension-connect{margin:15px 0;padding:13px;border:1px solid #e2eae0;border-radius:12px;background:#f7faf5}
+.extension-connect>p{margin:6px 0 10px;color:#78867b;font-size:10px;line-height:1.55}
+.extension-connect button{min-height:36px;padding:8px 12px;border:1px solid #dbe6d9;border-radius:9px;background:#fff;color:#38674a;font:600 10px var(--sans);cursor:pointer}
+.extension-connect button:disabled{opacity:.6;cursor:wait}
+#extensionCodeBox{display:grid;gap:4px;margin-top:10px;padding:10px;border-radius:9px;background:#eaf3e8;color:#647768;font-size:9px}
+#extensionCodeBox[hidden]{display:none}
+#extensionCodeBox strong{font:700 22px var(--display);letter-spacing:4px;color:#286749}
+#extensionCodeBox small{color:#89958b;font-size:8px}
+#extensionConnectStatus{margin-top:7px;color:#56705b;font-size:9px}
