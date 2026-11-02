@@ -20,11 +20,15 @@ Open `/mock-nsp` while the app is running to use the fictional scholarship regis
 
 The application assistant can read JPG, PNG, WebP, and PDF documents locally in the browser using Tesseract.js and PDF.js. OCR supports English and Hindi; PDF text is read directly when available, otherwise up to four pages are rendered for OCR. The first OCR run downloads the language model from jsDelivr. The document itself is not uploaded. Extracted values are suggestions and must be reviewed; this is OCR, not document authenticity verification.
 
+## Mock eShram sandbox
+
+Open `/mock-eshram` from the Jan Sahayak sidebar or directly while the app is running. This practice portal is based on the local `e-shram` project and uses fictional values only. The registration demo accepts any 10-digit mobile number, captcha `7K2M`, and demo OTP `123456`, then lets the user review fictional worker details. It stores no data, sends no OTP, and has no connection to the real eShram service. The Sahayak browser guide supports this page and can point out the visible fields and navigation links; users enter values and control every step.
+
 ## Sahayak scheme page guide extension
 
 `extension/` contains a Manifest V3 Chromium extension that helps users navigate scheme registration and application pages. Load it from `chrome://extensions` (or the equivalent extensions page in Chromium) with Developer mode enabled and choose **Load unpacked**, selecting this repository's `extension` folder. Open a supported scheme page, click the Sahayak toolbar icon, then choose **Start crawler on this page**. The on-page guide identifies the current step, visible required fields, and likely page actions; **Show** scrolls to a field when available. It rescans after page changes, including multi-step forms. Use the extension popup or the guide's close button to stop it.
 
-The extension supports HTTPS `.gov.in` and `.nic.in` pages plus the local `/mock-nsp` sandbox. Page inspection is local to the browser tab. Sahayak does not read a saved profile or documents, fill fields, click portal controls, solve verification, or submit forms. OTP, CAPTCHA, identity checks, answers, and navigation remain under the user's control. It is a navigation guide, not an official government integration or a guarantee that every portal can be recognized.
+The extension supports HTTPS `.gov.in` and `.nic.in` pages plus the local `/mock-nsp` and `/mock-eshram` sandboxes. Page inspection is local to the browser tab. Sahayak does not read a saved profile or documents, fill fields, click portal controls, solve verification, or submit forms. OTP, CAPTCHA, identity checks, answers, and navigation remain under the user's control. It is a navigation guide, not an official government integration or a guarantee that every portal can be recognized.
 
 The browser uses built-in speech recognition when supported. Otherwise, recorded audio is transcribed through Groq using `GROQ_TRANSCRIPTION_MODEL` (default `whisper-large-v3-turbo`). Browser-provided speech recognition is separate and does not use the Groq API key.
 

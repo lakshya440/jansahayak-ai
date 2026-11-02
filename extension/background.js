@@ -1,5 +1,5 @@
 function supportedPage(value=''){
-  try{const url=new URL(value),host=url.hostname.toLowerCase();return url.protocol==='https:'&&(host==='gov.in'||host.endsWith('.gov.in')||host==='nic.in'||host.endsWith('.nic.in'))||url.protocol==='http:'&&host==='localhost'&&url.pathname.startsWith('/mock-nsp');}catch{return false;}
+  try{const url=new URL(value),host=url.hostname.toLowerCase(),mockPath=url.pathname.startsWith('/mock-nsp')||url.pathname.startsWith('/mock-eshram');return url.protocol==='https:'&&(host==='gov.in'||host.endsWith('.gov.in')||host==='nic.in'||host.endsWith('.nic.in'))||url.protocol==='http:'&&host==='localhost'&&mockPath;}catch{return false;}
 }
 async function activeTabs(){const result=await chrome.storage.session.get('activeGuideTabs');return new Set(result.activeGuideTabs||[]);}
 async function saveActiveTabs(tabs){await chrome.storage.session.set({activeGuideTabs:[...tabs]});}
@@ -12,7 +12,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   if(message?.type==='sahayak-start-guide'||message?.type==='sahayak-stop-guide'){
     (async()=>{
       const tabId=Number(message.tabId);if(!Number.isInteger(tabId))throw new Error('Choose a browser tab first.');
-      const tab=await chrome.tabs.get(tabId);if(!supportedPage(tab.url))throw new Error('Open an HTTPS .gov.in or .nic.in page, or the local mock sandbox.');
+      const tab=await chrome.tabs.get(tabId);if(!supportedPage(tab.url))throw new Error('Open an HTTPS .gov.in or .nic.in page, or a local mock NSP/eShram sandbox.');
       const tabs=await activeTabs();
       if(message.type==='sahayak-start-guide')tabs.add(tabId);else tabs.delete(tabId);
       await saveActiveTabs(tabs);
