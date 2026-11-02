@@ -19,7 +19,7 @@ async function loadSettings(){
   if(saved.profileToken){status.textContent='Connected · profile access is read-only.';$('#disconnectButton').hidden=false;}
   for(const input of document.querySelectorAll('[data-profile]'))input.value=saved.localProfile?.[input.dataset.profile]||'';
   $('#allowBankDetails').checked=saved.allowBankDetails===true;
-  const pending=await chrome.storage.session.get('pendingDocumentValues');if(pending.pendingDocumentValues){showReview(pending.pendingDocumentValues);ocrStatus.textContent='Your reviewed OCR suggestions are ready for the active supported page.';}
+  const pending=await chrome.storage.session.get(['pendingDocumentValues','allowDocumentBank']);if(pending.pendingDocumentValues){showReview(pending.pendingDocumentValues);$('#allowDocumentBank').checked=pending.allowDocumentBank===true;ocrStatus.textContent='Your reviewed OCR suggestions are ready for this and the next pages in this browser session.';}
   await activePageStatus();
 }
 async function getOcrWorker(){
@@ -71,15 +71,17 @@ $('#documentFiles').addEventListener('change',async event=>{
   if(files.length>8){ocrStatus.textContent='Choose up to 8 documents at one time.';event.target.value='';return;}
   const combined={};let words=0;const failures=[];
   for(let index=0;index<files.length;index++){ocrStatus.textContent=`Reading document ${index+1} of ${files.length}: ${files[index].name} · locally…`;try{const text=await readDocument(files[index]);words+=text.trim().split(/\s+/).filter(Boolean).length;Object.assign(combined,parseFields(text));}catch(error){failures.push(`${files[index].name}: ${error.message||'could not read'}`);}}
-  showReview(combined);await chrome.storage.session.set({pendingDocumentValues:combined});ocrStatus.textContent=`Read ${files.length-failures.length} of ${files.length} documents (${words} words). Suggestions are unverified; review and correct them. ${failures.join(' ')}`;event.target.value='';
+  showReview(combined);await chrome.storage.session.set({pendingDocumentValues:combined,allowDocumentBank:$('#allowDocumentBank').checked});ocrStatus.textContent=`Read ${files.length-failures.length} of ${files.length} documents (${words} words). Suggestions are unverified; review and correct them. ${failures.join(' ')}`;event.target.value='';
 });
-$('#documentReview').addEventListener('input',event=>{const input=event.target.closest('[data-extracted]');if(input)extractedValues[input.dataset.extracted]=input.value.trim();});
+$('#documentReview').addEventListener('input',event=>{const input=event.target.closest('[data-extracted]');if(input){extractedValues[input.dataset.extracted]=input.value.trim();chrome.storage.session.set({pendingDocumentValues:extractedValues});}});
+$('#allowDocumentBank').addEventListener('change',()=>chrome.storage.session.set({allowDocumentBank:$('#allowDocumentBank').checked}));
 $('#fillDocumentFields').addEventListener('click',async()=>{
   const [tab]=await chrome.tabs.query({active:true,currentWindow:true});
   const values={...extractedValues,allow_bank_details:$('#allowDocumentBank').checked};
-  try{const response=await chrome.tabs.sendMessage(tab.id,{type:'sahayak-fill-from-documents',values});ocrStatus.textContent=response?.status||'Sent reviewed document values to the page.';if(response?.filled)await chrome.storage.session.remove('pendingDocumentValues');}
+  try{const response=await chrome.tabs.sendMessage(tab.id,{type:'sahayak-fill-from-documents',values});ocrStatus.textContent=response?.status||'Sent reviewed document values to the page. They remain available as you advance through the form.';await chrome.storage.session.set({pendingDocumentValues:extractedValues,allowDocumentBank:$('#allowDocumentBank').checked});}
   catch{ocrStatus.textContent='The active page is not supported or could not be scanned. Open an HTTPS .gov.in/.nic.in page or localhost mock sandbox, then retry.';}
 });
+$('#clearDocumentFields').addEventListener('click',async()=>{await chrome.storage.session.remove(['pendingDocumentValues','allowDocumentBank']);extractedValues={};$('#documentReview').hidden=true;const [tab]=await chrome.tabs.query({active:true,currentWindow:true});try{await chrome.tabs.sendMessage(tab.id,{type:'sahayak-clear-document-data'});}catch{}ocrStatus.textContent='Document suggestions cleared from this browser session.';});
 
 $('#connectButton').addEventListener('click',async()=>{
   status.textContent='';const button=$('#connectButton');button.disabled=true;

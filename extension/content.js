@@ -7,7 +7,7 @@
   const secretField=/aadhaar|aadhar|uidai|pan.?number|otp|one.?time|captcha|recaptcha|hcaptcha|verification.?code|security.?code|password|passcode|pin.?code|signature|biometric|face.?verification|consent|agree|upload|file/i;
   const challenge=/captcha|recaptcha|hcaptcha|one.?time password|\botp\b|verification code|verify your (?:mobile|phone|identity)|human verification|i am not a robot|aadhaar face|biometric verification|मानव सत्यापन|ओटीपी|कैप्चा|सत्यापन कोड/i;
   const bankField=/bank|account.?number|account.?holder|ifsc|micr|branch.?code/i;
-  let profile=null,widget=null,statusNode=null,filledCount=0,challengeVisible=false,scanTimer=0;
+  let profile=null,baseProfile=null,documentProfile={},widget=null,statusNode=null,filledCount=0,challengeVisible=false,scanTimer=0,lastStepKey='';
 
   function announce(text,attention=false){
     if(!widget){widget=document.createElement('div');widget.id='sahayak-ai-extension';const shadow=widget.attachShadow({mode:'open'});shadow.innerHTML=`<style>
@@ -79,9 +79,19 @@
     const verificationField=[...document.querySelectorAll('input,textarea')].some(field=>challenge.test(fieldDescription(field))&&!hidden(field));
     return verificationField||challenge.test(pageText);
   }
+  function pageTitle(){return (document.querySelector('main h1,h1,[role="heading"][aria-level="1"],h2,h3')?.innerText||document.title||'this form step').trim().replace(/\s+/g,' ').slice(0,90);}
+  function stepKey(){const fields=[...document.querySelectorAll('input,select,textarea')].filter(field=>!hidden(field)).slice(0,14).map(fieldDescription).join('|'),copy=(document.querySelector('main')?.innerText||document.body?.innerText||'').replace(/\s+/g,' ').slice(0,220);return `${location.href}|${pageTitle()}|${fields}|${copy}`;}
+  function nextStepText(count,needsHelp){
+    if(needsHelp)return 'Step needs your attention: complete the OTP, CAPTCHA, or identity check yourself. Then choose Continue on the page; I’ll scan the next step.';
+    if(count)return `${pageTitle()}: I filled ${count} matching blank field${count===1?'':'s'} from your reviewed documents. Check the highlighted values, then choose Continue or Next on the page. I’ll suggest the next step when it changes.`;
+    if(filledCount)return `${pageTitle()}: your matching details are filled. Review them, then choose Continue or Next on the page. I’ll scan and guide you on the next step.`;
+    if(profile)return `${pageTitle()}: I don’t see another matching blank field to fill. Complete any required item you know, then choose Continue or Next; I’ll scan the next page.`;
+    return `${pageTitle()}: open the Sahayak extension, choose the student’s documents, review the extracted suggestions, and tap Fill this page. I’ll guide you again after the page changes.`;
+  }
   function scan(){
+    const key=stepKey();if(key!==lastStepKey){lastStepKey=key;filledCount=0;}
     const needsHelp=verificationNeeded();
-    if(needsHelp&&!challengeVisible){challengeVisible=true;announce('Complete the OTP, CAPTCHA, or identity check yourself. I’ll scan again after you continue.',true);chrome.runtime.sendMessage({type:'sahayak-verification-required'}).catch(()=>{});}
+    if(needsHelp&&!challengeVisible){challengeVisible=true;announce(nextStepText(0,true),true);chrome.runtime.sendMessage({type:'sahayak-verification-required'}).catch(()=>{});}
     if(!needsHelp)challengeVisible=false;
     let count=0;
     for(const field of document.querySelectorAll('input,select,textarea')){
@@ -91,26 +101,29 @@
       if(kind==='account_number'||kind==='account_holder'||kind==='ifsc')if(!profile.allow_bank_details)continue;
       if(setField(field,value))count++;
     }
-    if(count){filledCount+=count;announce(`Filled ${count} blank field${count===1?'':'s'} from your saved profile.`,false);}
-    else if(needsHelp)announce('Verification needs you. Complete it, then continue; I’ll rescan the next step.',true);
-    else if(!statusNode?.textContent||statusNode.textContent.startsWith('Looking'))announce('Scanning this supported government page for matching blank fields.',false);
+    if(count)filledCount+=count;
+    if(needsHelp)announce(nextStepText(0,true),true);
+    else announce(nextStepText(count,false),false);
     return count;
   }
   function scheduleScan(){clearTimeout(scanTimer);scanTimer=setTimeout(scan,450);}
-  function startObserver(){const observer=new MutationObserver(scheduleScan);observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['value','disabled','hidden']});document.addEventListener('input',scheduleScan,true);document.addEventListener('change',scheduleScan,true);window.addEventListener('popstate',scheduleScan);}
+  function startObserver(){const observer=new MutationObserver(records=>{const pageChanged=records.some(record=>{const target=record.target; if(widget&&(target===widget||widget.contains(target)))return false;const nodes=[...record.addedNodes,...record.removedNodes];return !nodes.length||!nodes.every(node=>node===widget||(node.nodeType===1&&widget?.contains(node)));});if(pageChanged)scheduleScan();});observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['value','disabled','hidden']});document.addEventListener('input',scheduleScan,true);document.addEventListener('change',scheduleScan,true);window.addEventListener('popstate',scheduleScan);window.addEventListener('hashchange',scheduleScan);}
 
   chrome.runtime.onMessage.addListener((message,_sender,sendResponse)=>{
     if(message?.type==='sahayak-fill-from-documents'){
       const values=message.values&&typeof message.values==='object'?message.values:{};
-      profile={...(profile||{}),...values,allow_bank_details:values.allow_bank_details===true};
+      documentProfile={...values};profile={...(baseProfile||{}),...documentProfile,allow_bank_details:values.allow_bank_details===true||baseProfile?.allow_bank_details===true};
       const count=scan();sendResponse({filled:count,status:count?`Filled ${count} matching blank field${count===1?'':'s'} from the reviewed documents.`:'Scanned the page. No matching blank fields were found.'});return;
     }
+    if(message?.type==='sahayak-clear-document-data'){documentProfile={};profile=baseProfile;scan();sendResponse({status:'Document suggestions cleared from this page.'});return;}
     if(message?.type==='sahayak-scan-now'){const count=scan();sendResponse({status:count?`Sahayak filled ${count} blank field${count===1?'':'s'}.`:'Sahayak scanned this page.'});}
   });
+  announce('Sahayak is checking this page.');startObserver();
   chrome.runtime.sendMessage({type:'sahayak-get-profile'}).then(result=>{
-    if(!result?.connected)return;
-    announce(result.error||'Connected · scanning supported government forms.',Boolean(result.error));
-    if(result.error)return;
-    profile=result.profile;scan();startObserver();
-  }).catch(()=>{});
+    baseProfile=result?.baseProfile||null;documentProfile=result?.documentProfile||{};profile=result?.connected?result.profile:null;
+    if(result?.error)announce(`${result.error} You can still choose documents in the extension popup.`,true);
+    else if(profile)announce(`Sahayak is ready with ${result.source==='documents'?'your reviewed documents':'your connected profile'}.`,false);
+    else announce('Sahayak is ready. Open the extension, choose documents, and review the extracted fields to begin.',false);
+    scan();
+  }).catch(()=>{announce('Sahayak is ready. Open the extension, choose documents, and review the extracted fields to begin.',false);scan();});
 })();

@@ -8,16 +8,23 @@ function allowedPage(rawUrl='') {
 
 async function loadProfile() {
   const saved=await chrome.storage.local.get(['apiOrigin','profileToken','localProfile','allowBankDetails']);
-  if(!saved.apiOrigin||!saved.profileToken)return {connected:false};
+  const session=await chrome.storage.session.get('pendingDocumentValues');
+  const documentProfile=session.pendingDocumentValues||{};
+  const hasDocuments=Object.keys(documentProfile).some(key=>String(documentProfile[key]??'').trim());
+  const documentFields={...documentProfile,allow_bank_details:session.allowDocumentBank===true};
+  if(!saved.apiOrigin||!saved.profileToken){
+    return hasDocuments?{connected:true,profile:documentFields,baseProfile:null,documentProfile:documentFields,source:'documents'}:{connected:false,profile:null,baseProfile:null,documentProfile:{}};
+  }
   let response;
   try {
     response=await fetch(`${saved.apiOrigin}/api/extension/profile`,{headers:{authorization:`Bearer ${saved.profileToken}`},cache:'no-store'});
-  } catch { return {connected:true,error:'Can’t reach Jan Sahayak. Check your connection.'}; }
-  if(response.status===401){await chrome.storage.local.remove(['profileToken']);return {connected:false,error:'Your connection expired. Pair the extension again from Jan Sahayak.'};}
-  if(!response.ok)return {connected:true,error:'Couldn’t read your saved profile. Try again.'};
+  } catch { return hasDocuments?{connected:true,profile:documentFields,baseProfile:null,documentProfile:documentFields,source:'documents',error:'Can’t reach Jan Sahayak. Using the reviewed documents for this session.'}:{connected:true,error:'Can’t reach Jan Sahayak. Check your connection.'}; }
+  if(response.status===401){await chrome.storage.local.remove(['profileToken']);return hasDocuments?{connected:true,profile:documentFields,baseProfile:null,documentProfile:documentFields,source:'documents',error:'Your profile connection expired. Using the reviewed documents for this session.'}:{connected:false,error:'Your connection expired. Pair the extension again from Jan Sahayak.'};}
+  if(!response.ok)return hasDocuments?{connected:true,profile:documentFields,baseProfile:null,documentProfile:documentFields,source:'documents',error:'Couldn’t read your saved profile. Using the reviewed documents.'}:{connected:true,error:'Couldn’t read your saved profile. Try again.'};
   const data=await response.json();
-  if(data.profile?.consent!==true)return {connected:true,error:'Enable profile storage in Jan Sahayak to use autofill.'};
-  return {connected:true,profile:{...data.profile,...(saved.localProfile||{}),allow_bank_details:saved.allowBankDetails===true}};
+  if(data.profile?.consent!==true)return hasDocuments?{connected:true,profile:documentFields,baseProfile:null,documentProfile:documentFields,source:'documents',error:'Enable profile storage in Jan Sahayak to use profile autofill. Using reviewed documents.'}:{connected:true,error:'Enable profile storage in Jan Sahayak to use autofill.'};
+  const baseProfile={...data.profile,...(saved.localProfile||{}),allow_bank_details:saved.allowBankDetails===true};
+  return {connected:true,baseProfile,documentProfile:documentFields,profile:{...baseProfile,...documentFields,allow_bank_details:session.allowDocumentBank===true||saved.allowBankDetails===true},source:hasDocuments?'documents':'profile'};
 }
 
 async function playVerificationCue() {
