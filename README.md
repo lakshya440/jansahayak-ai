@@ -18,6 +18,8 @@ The browser uses built-in speech recognition when supported. Otherwise, recorded
 
 The WhatsApp version accepts text and voice notes; voice notes are transcribed through Groq and replies use Groq browser search. To enable WhatsApp, deploy behind HTTPS, configure the webhook URL as `https://YOUR_HOST/webhook/whatsapp`, subscribe to `messages`, and set the same verify token in Meta and `.env`. Set `WHATSAPP_ACCESS_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` to enable replies. Set `WHATSAPP_APP_SECRET` to verify Meta webhook signatures.
 
+Telegram supports text chats through `POST /webhook/telegram`. Create a bot with [@BotFather](https://t.me/BotFather), add its token as `TELEGRAM_BOT_TOKEN` in Render, and deploy. On startup, the server registers `https://YOUR_RENDER_HOST/webhook/telegram` with Telegram using Telegram's secret-token header for webhook verification. Render provides `RENDER_EXTERNAL_URL`; for another host, set `APP_BASE_URL` to the service's public HTTPS base URL. Check the deploy logs for the bot's `https://t.me/<username>` link, then open it and tap Start. Chat history is stored by Telegram chat when PostgreSQL is configured. Never commit or share the bot token.
+
 When a user asks to apply for a scheme, the web chat can prepare a review-only draft. The user must check it and submit it on the official site; the chatbot does not log into government sites or submit applications.
 
 ## Notes
