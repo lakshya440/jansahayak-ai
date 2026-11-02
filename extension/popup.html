@@ -11,6 +11,28 @@
     <header class="brand"><img src="icons/icon48.png" alt="" /><div><strong>Sahayak AI</strong><small>GOVERNMENT FORM HELPER</small></div><span class="live-dot" aria-hidden="true"></span></header>
     <section id="pageStatus" class="page-status">Checking this page…</section>
     <button id="scanButton" class="secondary scan-button" type="button">Scan this page now</button>
+    <section class="document-card">
+      <div class="section-title">1 · Add the student’s documents</div>
+      <p>Choose several JPG, PNG, WebP, or PDF files together. English and Hindi OCR runs in this browser; files stay on this device.</p>
+      <button id="chooseDocuments" class="secondary file-picker" type="button">Choose multiple documents</button>
+      <input id="documentFiles" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" multiple hidden />
+      <div id="ocrStatus" class="status" role="status"></div>
+      <div id="documentReview" class="document-review" hidden>
+        <div class="section-title">2 · Review extracted suggestions</div>
+        <div class="review-fields">
+          <label>Full name<input data-extracted="name" type="text" /></label>
+          <label>Phone<input data-extracted="phone" type="tel" /></label>
+          <label>Date of birth<input data-extracted="dob" type="date" /></label>
+          <label>Category<input data-extracted="category" type="text" /></label>
+          <label>Annual income<input data-extracted="annual_income" type="number" /></label>
+          <label>Marks (%)<input data-extracted="marks" type="number" min="0" max="100" step="0.1" /></label>
+          <label>IFSC<input data-extracted="ifsc" type="text" maxlength="11" /></label>
+          <label>Account number<input data-extracted="account_number" type="text" inputmode="numeric" /></label>
+        </div>
+        <label class="consent"><input id="allowDocumentBank" type="checkbox" /> Allow extracted bank fields to be filled</label>
+        <button id="fillDocumentFields" class="primary" type="button">Fill matching blank fields on this page</button>
+      </div>
+    </section>
     <section class="connect-card">
       <div class="section-title">Connect your Jan Sahayak profile</div>
       <p>In Jan Sahayak, open <b>My account → Sahayak browser helper</b> and create a one-time code.</p>

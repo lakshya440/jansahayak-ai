@@ -11,7 +11,7 @@
     "https://*.nic.in/*",
     "http://localhost/*"
   ],
-  "optional_host_permissions": ["https://*/*", "http://localhost/*"],
+  "optional_host_permissions": ["https://*/*", "https://cdn.jsdelivr.net/*"],
   "background": { "service_worker": "background.js" },
   "action": {
     "default_title": "Sahayak AI · Government Form Helper",
@@ -27,6 +27,7 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
+  "web_accessible_resources": [{"resources":["icons/*.png","vendor/tesseract/worker.min.js","vendor/tesseract-core/*","vendor/pdfjs/pdf.worker.min.mjs"],"matches":["https://gov.in/*","https://*.gov.in/*","https://nic.in/*","https://*.nic.in/*","http://localhost/*"]}],
   "content_scripts": [{
     "matches": ["https://gov.in/*", "https://*.gov.in/*", "https://nic.in/*", "https://*.nic.in/*", "http://localhost/*"],
     "js": ["content.js"],

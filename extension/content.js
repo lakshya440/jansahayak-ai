@@ -100,6 +100,11 @@
   function startObserver(){const observer=new MutationObserver(scheduleScan);observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['value','disabled','hidden']});document.addEventListener('input',scheduleScan,true);document.addEventListener('change',scheduleScan,true);window.addEventListener('popstate',scheduleScan);}
 
   chrome.runtime.onMessage.addListener((message,_sender,sendResponse)=>{
+    if(message?.type==='sahayak-fill-from-documents'){
+      const values=message.values&&typeof message.values==='object'?message.values:{};
+      profile={...(profile||{}),...values,allow_bank_details:values.allow_bank_details===true};
+      const count=scan();sendResponse({filled:count,status:count?`Filled ${count} matching blank field${count===1?'':'s'} from the reviewed documents.`:'Scanned the page. No matching blank fields were found.'});return;
+    }
     if(message?.type==='sahayak-scan-now'){const count=scan();sendResponse({status:count?`Sahayak filled ${count} blank field${count===1?'':'s'}.`:'Sahayak scanned this page.'});}
   });
   chrome.runtime.sendMessage({type:'sahayak-get-profile'}).then(result=>{
