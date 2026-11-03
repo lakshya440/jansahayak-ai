@@ -217,7 +217,10 @@ function complaintMailer(){
 }
 function smtpError(error){
   if(error?.code==='EAUTH'||error?.responseCode===535)return Object.assign(new Error('Gmail rejected the SMTP login. Use a Google App Password (16 characters); spaces are okay. Confirm SMTP_USER is the same Google account, then restart the server.'),{status:502});
-  if(['ETIMEDOUT','ECONNECTION','ESOCKET','ECONNREFUSED'].includes(error?.code))return Object.assign(new Error('Could not connect to Gmail SMTP. Check network access and SMTP_HOST/SMTP_PORT, then restart the server.'),{status:502});
+  if(['ETIMEDOUT','ECONNECTION','ESOCKET','ECONNREFUSED'].includes(error?.code)){
+    const renderNote=process.env.RENDER==='true'?' Render Free services block outbound SMTP ports 25, 465, and 587; use a paid Render plan or an HTTPS email provider.':'';
+    return Object.assign(new Error(`Could not connect to Gmail SMTP.${renderNote} Check SMTP_HOST and SMTP_PORT if your host allows SMTP.`),{status:502});
+  }
   return Object.assign(new Error('Gmail could not send the complaint. Check the SMTP settings and try again.'),{status:502});
 }
 function hashPassword(password){const salt=crypto.randomBytes(16).toString('hex');return new Promise((resolve,reject)=>crypto.scrypt(password,salt,64,(error,key)=>error?reject(error):resolve(`${salt}:${key.toString('hex')}`)));}
