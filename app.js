@@ -17,6 +17,8 @@ function apiHeaders(json=true){const headers={};if(json)headers['content-type']=
 function requestAuth(callback=null){afterAuth=callback;$('#authError').textContent='';authDialog.showModal();}
 function sendComplaint(type){const status=$('#saathiStatus'),recipient='itslakshya777@gmail.com';status.textContent=`Demo: email marked as sent to ${recipient}. No email was actually sent.`;status.className='saathi-status success';}
 document.querySelectorAll('.saathi-button').forEach(button=>button.addEventListener('click',()=>sendComplaint(button.dataset.complaint)));
+$('#saathiToggle').addEventListener('click',()=>{const menu=$('#saathiMenu'),open=menu.hidden;menu.hidden=!open;$('#saathiToggle').setAttribute('aria-expanded',String(open));});
+document.addEventListener('click',event=>{if(!event.target.closest('.saathi-menu-wrap')){$('#saathiMenu').hidden=true;$('#saathiToggle').setAttribute('aria-expanded','false');}});
 function updateAccount(user){currentUser=user;$('#accountName').textContent=user?.name||t('guest');$('#accountStatus').textContent=user?.email||t('exploring');$('#topAccountLabel').textContent=user?(uiLanguage==='hi'?'मेरा खाता':'My account'):t('login');$('#logoutBtn').hidden=!user;}
 
 function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}

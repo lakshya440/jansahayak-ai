@@ -26,11 +26,6 @@
       <a class="side-item mock-nsp-link" id="mockEshramLink" href="/mock-eshram/index.html?runDemo=1"><span class="side-icon">↗</span> <span>Run mock eShram demo</span><span class="demo-tag">SANDBOX</span></a>
       <div class="sidebar-label progress-label" data-i18n="applicationProgress">APPLICATION PROGRESS</div>
       <div class="application-progress-list" id="applicationProgressList" aria-label="Your application progress"><div class="history-empty">Log in to track your applications.</div></div>
-      <section class="saathi-panel" aria-labelledby="saathiTitle">
-        <div class="saathi-heading"><span class="saathi-mark">✉</span><div><p class="saathi-eyebrow">JAN SAHAYAK · SAATHI</p><h2 id="saathiTitle">Need help raising a concern?</h2><p>Choose a complaint option.</p></div></div>
-        <div class="saathi-actions"><button type="button" class="saathi-button" data-complaint="general"><span class="saathi-button-icon">✳</span><span><strong>Email complaint</strong><small>Jan Sahayak support</small></span><span class="saathi-arrow">→</span></button><button type="button" class="saathi-button bank" data-complaint="bank"><span class="saathi-button-icon">⌂</span><span><strong>Bank issue</strong><small>Request assistance</small></span><span class="saathi-arrow">→</span></button></div>
-        <p class="saathi-status" id="saathiStatus" aria-live="polite">Demo only · no email is sent.</p>
-      </section>
       <div class="sidebar-label history-label" data-i18n="recentChats">RECENT CHATS</div>
       <div class="conversation-list" id="conversationList" aria-label="Saved conversations"><div class="history-empty">Log in to save chat history.</div></div>
       <div class="side-rule"></div>
@@ -48,6 +43,7 @@
         <div class="mobile-brand"><span class="brand-mark small"><svg viewBox="0 0 40 40"><path d="M20 32V18m0 8c-8 0-13-5-13-13 8 0 13 5 13 13Zm0-5c0-8 5-13 13-13 0 8-5 13-13 13Z"/><path d="M10 32h20"/></svg></span> jan sahayak</div>
         <div class="top-spacer"></div>
         <div class="language-picker"><span class="globe">◎</span><span data-i18n="languageLabel">Language</span><select id="language" aria-label="Website and response language"><option value="en">English</option><option value="hi">हिन्दी</option></select><span class="chevron">⌄</span></div>
+        <div class="saathi-menu-wrap"><button type="button" id="saathiToggle" class="saathi-toggle" aria-expanded="false" aria-controls="saathiMenu">✉ <span>Saathi</span></button><div id="saathiMenu" class="saathi-menu" hidden><strong>Raise a concern</strong><button type="button" class="saathi-option saathi-button" data-complaint="general">Email complaint to Jan Sahayak</button><button type="button" class="saathi-option saathi-button" data-complaint="bank">Report a bank related issue</button><p class="saathi-status" id="saathiStatus" aria-live="polite">Demo only · no email is sent.</p></div></div>
         <button class="profile-top" id="profileOpenTop" aria-label="My account" data-i18n-aria="openAccount"><span>◉</span><span class="desktop-profile-label" id="topAccountLabel">Log in</span></button><button class="logout-button" id="logoutBtn" type="button" hidden data-i18n="logout">Log out</button>
       </header>
       <section class="conversation" id="conversation">
