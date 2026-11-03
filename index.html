@@ -26,6 +26,11 @@
       <a class="side-item mock-nsp-link" id="mockEshramLink" href="/mock-eshram/index.html?runDemo=1"><span class="side-icon">↗</span> <span>Run mock eShram demo</span><span class="demo-tag">SANDBOX</span></a>
       <div class="sidebar-label progress-label" data-i18n="applicationProgress">APPLICATION PROGRESS</div>
       <div class="application-progress-list" id="applicationProgressList" aria-label="Your application progress"><div class="history-empty">Log in to track your applications.</div></div>
+      <section class="saathi-panel" aria-labelledby="saathiTitle">
+        <div class="saathi-heading"><span class="saathi-mark">✉</span><div><p class="saathi-eyebrow">JAN SAHAYAK · SAATHI</p><h2 id="saathiTitle">Need help raising a concern?</h2><p>Choose a complaint option.</p></div></div>
+        <div class="saathi-actions"><button type="button" class="saathi-button" data-complaint="general"><span class="saathi-button-icon">✳</span><span><strong>Email complaint</strong><small>Jan Sahayak support</small></span><span class="saathi-arrow">→</span></button><button type="button" class="saathi-button bank" data-complaint="bank"><span class="saathi-button-icon">⌂</span><span><strong>Bank issue</strong><small>Request assistance</small></span><span class="saathi-arrow">→</span></button></div>
+        <p class="saathi-status" id="saathiStatus" aria-live="polite">Demo only · no email is sent.</p>
+      </section>
       <div class="sidebar-label history-label" data-i18n="recentChats">RECENT CHATS</div>
       <div class="conversation-list" id="conversationList" aria-label="Saved conversations"><div class="history-empty">Log in to save chat history.</div></div>
       <div class="side-rule"></div>
@@ -56,11 +61,6 @@
             <button class="prompt-card" data-prompt="I am a student. What scholarships are available?" data-prompt-hi="मैं विद्यार्थी हूँ। कौन-सी छात्रवृत्तियाँ उपलब्ध हैं?"><span class="prompt-icon student-icon">▤</span><span><strong data-i18n="studentPrompt">I’m a student</strong><small data-i18n="studentPromptCopy">Scholarships &amp; education support</small></span><span class="arrow">↗</span></button>
             <button class="prompt-card wide" data-prompt="I am looking for a government scheme. Help me get started." data-prompt-hi="मुझे सरकारी योजना ढूँढ़ने में मदद करें।"><span class="prompt-icon explore-icon">⌕</span><span><strong data-i18n="explorePrompt">Let’s figure it out together</strong><small data-i18n="explorePromptCopy">Not sure where to start? That’s okay.</small></span><span class="arrow">↗</span></button>
           </div>
-          <section class="saathi-panel" aria-labelledby="saathiTitle">
-            <div class="saathi-heading"><span class="saathi-mark">✉</span><div><p class="saathi-eyebrow">JAN SAHAYAK · SAATHI</p><h2 id="saathiTitle">Need help raising a concern?</h2><p>Send a formal complaint using your account details. No email writing needed.</p></div></div>
-            <div class="saathi-actions"><button type="button" class="saathi-button" data-complaint="general"><span class="saathi-button-icon">✳</span><span><strong>Email complaint to Jan Sahayak</strong><small>Send a formal complaint to our support inbox</small></span><span class="saathi-arrow">→</span></button><button type="button" class="saathi-button bank" data-complaint="bank"><span class="saathi-button-icon">⌂</span><span><strong>Report a bank related issue</strong><small>Send a formal request for bank assistance</small></span><span class="saathi-arrow">→</span></button></div>
-            <p class="saathi-status" id="saathiStatus" aria-live="polite">Sign in to send a complaint from your account email.</p>
-          </section>
         </div>
         <div class="messages" id="messages" aria-live="polite"></div>
       </section>
