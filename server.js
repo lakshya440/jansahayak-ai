@@ -347,8 +347,8 @@ async function reply(text, phone, history=[], profileContext='', channel='web') 
   const language=langOf(text), applicationIntent=wantsApplication(text);
   if(channel==='Telegram'&&wantsEshramApplication(text)){
     const answer=language==='Hindi'
-      ?'eShram पंजीकरण प्रक्रिया को Jan Sahayak पर देखें: https://jansahayak-ai-8rgc.onrender.com\nयह अभ्यास केवल नमूना जानकारी का उपयोग करता है और आधिकारिक eShram सेवा से जुड़ा नहीं है।'
-      :'To review the eShram registration process, open Jan Sahayak: https://jansahayak-ai-8rgc.onrender.com\nThis walkthrough uses sample information and is not connected to the official eShram service.';
+      ?'eShram पंजीकरण की जानकारी के लिए Jan Sahayak खोलें: https://jansahayak-ai-8rgc.onrender.com\nयह walkthrough नमूना जानकारी का उपयोग करता है और आधिकारिक eShram सेवा से जुड़ा नहीं है।'
+      :'For eShram registration information, open Jan Sahayak: https://jansahayak-ai-8rgc.onrender.com\nThis walkthrough uses sample information and is not connected to the official eShram service.';
     return {answer,sources:[],language,schemes:[],action:null};
   }
   if(!GROQ_API_KEY)throw Object.assign(new Error('Chat answers need GROQ_API_KEY. Add your Groq API key to .env and restart the app.'),{status:503});

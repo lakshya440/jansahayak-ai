@@ -4,7 +4,7 @@ async function refresh(){
   const [tab]=await chrome.tabs.query({active:true,currentWindow:true}),status=$('#pageStatus');currentTabId=tab?.id??null;
   if(!tab?.url){status.textContent='Open a supported scheme website to use the page guide.';return;}
   const state=await chrome.runtime.sendMessage({type:'sahayak-page-support',tabId:currentTabId});
-  if(!state?.supported){status.textContent='Supported pages: HTTPS .gov.in and .nic.in, plus the local mock sandbox.';return;}
+  if(!state?.supported){status.textContent='Supported pages: HTTPS .gov.in and .nic.in, plus the local walkthrough.';return;}
   status.textContent=`Ready · ${new URL(tab.url).hostname}`;$('#startGuide').hidden=Boolean(state.active);$('#stopGuide').hidden=!state.active;
 }
 async function control(type){

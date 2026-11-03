@@ -12,7 +12,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   if(message?.type==='sahayak-start-guide'||message?.type==='sahayak-stop-guide'){
     (async()=>{
       const tabId=Number(message.tabId);if(!Number.isInteger(tabId))throw new Error('Choose a browser tab first.');
-      const tab=await chrome.tabs.get(tabId);if(!supportedPage(tab.url))throw new Error('Open an HTTPS .gov.in or .nic.in page, or a local mock NSP/eShram sandbox.');
+      const tab=await chrome.tabs.get(tabId);if(!supportedPage(tab.url))throw new Error('Open an HTTPS .gov.in or .nic.in page, or a local NSP/eShram walkthrough.');
       const tabs=await activeTabs();
       if(message.type==='sahayak-start-guide')tabs.add(tabId);else tabs.delete(tabId);
       await saveActiveTabs(tabs);

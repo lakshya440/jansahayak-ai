@@ -18,7 +18,7 @@ function wirePracticeRegistration(){
   card.append(otpPanel,detailPanel,receipt);
   send.addEventListener('click',()=>{const selected=name=>form.querySelector(`input[name="${name}"]:checked`);if(!/^\d{10}$/.test(mobile.value.trim())){status.textContent='Enter any 10-digit fictional mobile number.';mobile.focus();return}if(captchaInput.value.trim().toUpperCase()!=='7K2M'){status.textContent='Enter the displayed code 7K2M.';captchaInput.focus();return}if(!selected('epfo')||!selected('esic')){status.textContent='Choose Yes or No for both worker membership questions.';return}status.textContent='One-time code prepared. Continue with the fictional code 123456.';otpPanel.hidden=false;otpPanel.scrollIntoView({behavior:'smooth',block:'center'})});
   otpPanel.querySelector('#verifyDemoOtp').addEventListener('click',()=>{const otp=otpPanel.querySelector('#demoOtp');if(otp.value!=='123456'){otpPanel.querySelector('#otpStatus').textContent='That code does not match. Use 123456.';otp.focus();return}form.hidden=true;otpPanel.hidden=true;detailPanel.hidden=false;detailPanel.scrollIntoView({behavior:'smooth',block:'center'})});
-  detailPanel.querySelector('#workerDetails').addEventListener('submit',event=>{event.preventDefault();const values=Object.fromEntries(new FormData(event.currentTarget));detailPanel.hidden=true;receipt.hidden=false;receipt.innerHTML='<h2>Practice registration reviewed</h2><p class="required">This is a fictional practice record. Nothing was sent or submitted to eShram.</p>';const list=document.createElement('dl');Object.entries(values).forEach(([key,value])=>{const row=document.createElement('div'),term=document.createElement('dt'),description=document.createElement('dd');term.textContent=key[0].toUpperCase()+key.slice(1);description.textContent=value;row.append(term,description);list.append(row)});receipt.append(list);receipt.scrollIntoView({behavior:'smooth',block:'center'})});
+  detailPanel.querySelector('#workerDetails').addEventListener('submit',event=>{event.preventDefault();const values=Object.fromEntries(new FormData(event.currentTarget));detailPanel.hidden=true;receipt.hidden=false;receipt.innerHTML='<h2>Registration review complete</h2><p class="required">This is a fictional sample record. Nothing was sent or submitted to eShram.</p>';const list=document.createElement('dl');Object.entries(values).forEach(([key,value])=>{const row=document.createElement('div'),term=document.createElement('dt'),description=document.createElement('dd');term.textContent=key[0].toUpperCase()+key.slice(1);description.textContent=value;row.append(term,description);list.append(row)});receipt.append(list);receipt.scrollIntoView({behavior:'smooth',block:'center'})});
 }
 function announceEshram(type,status,reference){const pageStatus=document.querySelector('#eshramDemoStatus');if(pageStatus)pageStatus.textContent=status;eshramChannel?.postMessage({type,status,reference})}
 function waitForDemo(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
@@ -51,14 +51,14 @@ async function runEshramAutomation(values={}){
       field.value=profile[key];field.dispatchEvent(new Event('input',{bubbles:true}));field.dispatchEvent(new Event('change',{bubbles:true}));
     }
     if(!detail.checkValidity())throw new Error('A worker detail is missing or invalid.');
-    announceEshram('eshram-automation-status','Worker details filled · reviewing the practice registration.');
+    announceEshram('eshram-automation-status','Worker details filled · reviewing the registration walkthrough.');
     await waitForDemo(eshramDemoPauses.details);detail.requestSubmit();
     const card=document.querySelector('.reg-card'),receipt=[...card.querySelectorAll(':scope > .formpanel')].find(panel=>!panel.hidden);
-    if(!receipt||!receipt.querySelector('h2')?.textContent.includes('Practice registration reviewed'))throw new Error('Could not create the practice review.');
-    const reference=`ESHRAM-PRACTICE-${Date.now().toString(36).toUpperCase().slice(-6)}`,ref=document.createElement('p');
-    ref.className='required';ref.textContent=`Practice reference: ${reference} · fictional record`;receipt.append(ref);
-    announceEshram('eshram-application-complete','Practice registration complete',reference);
-  }catch(error){announceEshram('eshram-automation-paused',`Practice paused: ${error.message||'continue in the form manually.'}`);eshramAutomationRunning=false;}
+    if(!receipt||!receipt.querySelector('h2')?.textContent.includes('Registration review complete'))throw new Error('Could not create the registration review.');
+    const reference=`ESHRAM-REF-${Date.now().toString(36).toUpperCase().slice(-6)}`,ref=document.createElement('p');
+    ref.className='required';ref.textContent=`Reference: ${reference} · fictional record`;receipt.append(ref);
+    announceEshram('eshram-application-complete','Registration walkthrough complete',reference);
+  }catch(error){announceEshram('eshram-automation-paused',`Walkthrough paused: ${error.message||'continue in the form manually.'}`);eshramAutomationRunning=false;}
 }
 function receiveEshramValues(payload){if(payload?.type!=='eshram-demo-values'||Date.now()-Number(payload.sentAt)>10*60*1000)return;try{sessionStorage.removeItem('janSahayakMockEshram')}catch{}const values=payload.values||{};if(new URL(location.href).searchParams.get('runDemo')==='1')runEshramAutomation(values)}
 if(eshramChannel)eshramChannel.addEventListener('message',event=>receiveEshramValues(event.data));
