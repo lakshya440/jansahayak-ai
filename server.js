@@ -211,7 +211,7 @@ function validEmail(value){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);}
 const complaintInbox=normalizeEmail(process.env.COMPLAINT_INBOX||'itslakshya777@gmail.com');
 function complaintMailer(){
   const user=(process.env.SMTP_USER||'itslakshya777@gmail.com').trim(),pass=(process.env.SMTP_APP_PASSWORD||'').replace(/\s/g,'');
-  if(!pass)throw Object.assign(new Error('Email sending is not configured. Add SMTP_APP_PASSWORD to the server environment.'),{status:503});
+  if(!pass)throw Object.assign(new Error('This server has no SMTP_APP_PASSWORD configured. For local use, add it to .env and restart npm start. For the hosted site, add SMTP_APP_PASSWORD in the hosting service environment settings and restart or redeploy the service; local .env files are not uploaded with Git.'),{status:503});
   if(!validEmail(user))throw Object.assign(new Error('SMTP_USER must be a valid Gmail address.'),{status:503});
   return nodemailer.createTransport({host:process.env.SMTP_HOST||'smtp.gmail.com',port:Number(process.env.SMTP_PORT||465),secure:(process.env.SMTP_SECURE||'true').toLowerCase()!=='false',auth:{user,pass}});
 }
