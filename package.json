@@ -8,6 +8,7 @@
     "dev": "node --watch server.js"
   },
   "dependencies": {
+    "nodemailer": "^10.3.1",
     "pdfjs-dist": "^5.4.394",
     "pg": "^8.13.1",
     "tesseract.js": "^7.0.0"

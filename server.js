@@ -4,6 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+import nodemailer from 'nodemailer';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 // Node does not load .env files automatically. Load the project file without
@@ -207,6 +208,12 @@ function bearer(req){const match=String(req.headers.authorization||'').match(/^B
 async function authenticatedUser(req){authReady();const claims=verifyToken(bearer(req));if(!claims||claims.aud||claims.scope)throw Object.assign(new Error('Please log in to continue.'),{status:401});const {rows}=await readQuery('SELECT * FROM users WHERE id=$1',[claims.sub]);if(!rows[0])throw Object.assign(new Error('Account not found. Please log in again.'),{status:401});return rows[0];}
 function normalizeEmail(value){return String(value||'').trim().toLowerCase();}
 function validEmail(value){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);}
+const complaintInbox=normalizeEmail(process.env.COMPLAINT_INBOX||'itslakshya777@gmail.com');
+function complaintMailer(){
+  const user=process.env.SMTP_USER||'itslakshya777@gmail.com',pass=process.env.SMTP_APP_PASSWORD||'';
+  if(!pass)throw Object.assign(new Error('Email sending is not configured. Add SMTP_APP_PASSWORD to the server environment.'),{status:503});
+  return nodemailer.createTransport({host:process.env.SMTP_HOST||'smtp.gmail.com',port:Number(process.env.SMTP_PORT||465),secure:(process.env.SMTP_SECURE||'true').toLowerCase()!=='false',auth:{user,pass}});
+}
 function hashPassword(password){const salt=crypto.randomBytes(16).toString('hex');return new Promise((resolve,reject)=>crypto.scrypt(password,salt,64,(error,key)=>error?reject(error):resolve(`${salt}:${key.toString('hex')}`)));}
 function verifyPassword(password,stored){const [salt,keyHex]=String(stored||'').split(':');if(!salt||!keyHex)return Promise.resolve(false);return new Promise((resolve,reject)=>crypto.scrypt(password,salt,64,(error,key)=>{if(error)return reject(error);const expected=Buffer.from(keyHex,'hex');resolve(expected.length===key.length&&crypto.timingSafeEqual(key,expected));}));}
 const send = (res, status, data, headers={}) => { res.writeHead(status, { 'content-type':'application/json; charset=utf-8', 'cache-control':'no-store', ...headers }); res.end(JSON.stringify(data)); };
@@ -536,6 +543,19 @@ const server=http.createServer(async(req,res)=>{
       const {rows}=await pool.query('SELECT * FROM users WHERE LOWER(email)=$1',[email]);const user=rows[0];if(!user?.password_hash||!await verifyPassword(password,user.password_hash))return send(res,401,{error:'Email or password is incorrect.'});return send(res,200,{token:signToken(user),user:publicUser(user)});
     }
     if(req.method==='GET' && url.pathname==='/api/auth/me') {const user=await authenticatedUser(req);return send(res,200,{user:publicUser(user)});}
+    if(req.method==='POST' && url.pathname==='/api/complaints') {
+      const user=await authenticatedUser(req),input=await jsonBody(req),type=input.type;
+      if(!['general','bank'].includes(type))return send(res,400,{error:'Choose a valid complaint type.'});
+      if(!user.email||!validEmail(user.email))return send(res,400,{error:'Your account needs a valid email address before sending a complaint.'});
+      const name=String(user.name||'Jan Sahayak user').replace(/[<>\r\n]/g,' ').trim().slice(0,100);
+      const bank=type==='bank',subject=bank?'Request for assistance with a bank related issue':'Complaint to Jan Sahayak';
+      const bodyText=bank
+        ? `To the Concerned Bank Official,\n\nI, ${name}, am writing to request your assistance with a bank related issue. Please review my concern and guide me on the appropriate next steps.\n\nPlease contact me at ${user.email} if any further information is required.\n\nThank you for your time and assistance.\n\nSincerely,\n${name}`
+        : `To the Jan Sahayak Support Team,\n\nI, ${name}, am writing to formally raise a complaint and request your assistance. Please review my concern and guide me on the appropriate next steps.\n\nPlease contact me at ${user.email} if any further information is required.\n\nThank you for your time and assistance.\n\nSincerely,\n${name}`;
+      const transporter=complaintMailer();
+      await transporter.sendMail({from:`Jan Sahayak <${process.env.SMTP_USER||'itslakshya777@gmail.com'}>`,to:complaintInbox,replyTo:user.email,subject,text:bodyText});
+      return send(res,200,{ok:true,message:'Your complaint email was sent.'});
+    }
     if(req.method==='POST' && url.pathname==='/api/profile') {
       const user=await authenticatedUser(req),input=await jsonBody(req);
       if(!input.consent) return send(res,400,{error:'Please give consent before saving your profile.'});
